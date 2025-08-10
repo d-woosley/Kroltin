@@ -1,9 +1,14 @@
+from kroltin.core import Kroltin
+
+
 def cli():
-    print("hitting cli")
+    instance = Kroltin()
+    instance.cli()
 
 
 def web():
-    print("hitting web")
+    instance = Kroltin()
+    instance.web()
 
 
 if __name__ == "__main__":
