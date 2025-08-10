@@ -21,8 +21,11 @@ echo "Please download and install VMWare Workstation Player manually."
 curl -fsSL https://www.virtualbox.org/download/oracle_vbox_2016.asc| gpg --dearmor -o /etc/apt/trusted.gpg.d/vbox.gpg
 curl -fsSL https://www.virtualbox.org/download/oracle_vbox.asc| gpg --dearmor -o /etc/apt/trusted.gpg.d/oracle_vbox.gpg
 echo "deb [arch=amd64] http://download.virtualbox.org/virtualbox/debian $(lsb_release -cs) contrib" | tee /etc/apt/sources.list.d/virtualbox.list
-sudo apt install linux-headers-$(uname -r) dkms -y
-apt install virtualbox -y
+apt install linux-headers-$(uname -r) dkms -y
+apt update && apt install virtualbox-7.1 -y
 command -v virtualbox >/dev/null 2>&1 || { echo "Error: VirtualBox is not installed." >&2; exit 1; }
 
-
+# Install Pipx
+apt install pipx -y
+pipx ensurepath
+command -v pipx >/dev/null 2>&1 || { echo "Error: pipx is not installed." >&2; exit 1; }
