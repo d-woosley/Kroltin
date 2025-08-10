@@ -1,0 +1,18 @@
+[project]
+name = "kroltin"
+version = "0.0.1"
+description = "A Command and Control (C2) service for penetration testing"
+authors = [
+    {name = "Duncan Woosley"}
+]
+readme = "README.md"
+license = {file = "LICENSE.txt"}
+requires-python = ">=3.8"
+dependencies = [
+    "flask==3.1.1",
+    "tailscale==0.6.2"
+]
+
+[project.scripts]
+kroltin-cli = "kroltin.run:cli"
+kroltin-web = "kroltin.run:web"
