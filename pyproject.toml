@@ -16,3 +16,19 @@ dependencies = [
 [project.scripts]
 kroltin-cli = "kroltin.run:cli"
 kroltin-web = "kroltin.run:web"
+
+[tool.setuptools]
+packages = ["kroltin"]
+include-package-data = true
+
+[tool.setuptools.package-dir]
+kroltin = "kroltin"
+
+[tool.setuptools.package-data]
+kroltin = [
+    "packer_templates/*.json"
+]
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
