@@ -15,7 +15,7 @@ class Packer:
         ssh_password=None,
         iso_checksum=None,
         scripts=None,
-        build_script=None,
+        preseed_file=None,
         export_path=None,
         packer_template=None,
     ):
@@ -32,7 +32,7 @@ class Packer:
         self.ssh_password = ssh_password
         self.iso_checksum = iso_checksum
         self.scripts = scripts or []
-        self.build_script = build_script
+        self.preseed_file = preseed_file
         self.export_path = export_path
         self.packer_template = packer_template
         self.logger = logging.getLogger(__name__)
@@ -101,7 +101,7 @@ class Packer:
 
     def build(self):
         """Build the VM image using HashiCorp Packer CLI."""
-        self.logger.info(f"Starting build with ISOs: {self.iso_urls}, vmname: {self.vmname}, cpus: {self.cpus}, memory: {self.memory}, disk_size: {self.disk_size}, build_script: {self.build_script}, export_path: {self.export_path}")
+        self.logger.info(f"Starting build with ISOs: {self.iso_urls}, vmname: {self.vmname}, cpus: {self.cpus}, memory: {self.memory}, disk_size: {self.disk_size}, build_script: {self.preseed_file}, export_path: {self.export_path}")
 
         if not os.path.exists(self.packer_template):
             self.logger.error(f"Packer template not found: {self.packer_template}")
@@ -125,6 +125,9 @@ class Packer:
             cmd += ['-var', f"ssh_password={self.ssh_password}"]
         if self.iso_checksum is not None:
             cmd += ['-var', f"iso_checksum={self.iso_checksum}"]
+
+        if self.preseed_file is not None:
+            cmd += ['-var', f"preseed_file={self.preseed_file}"]
 
         if self.iso_urls:
             quoted = ",".join([f'\"{u}\"' for u in self.iso_urls])
