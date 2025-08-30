@@ -28,13 +28,13 @@ class Kroltin:
                 ssh_username=getattr(args, 'ssh_username', None),
                 ssh_password=getattr(args, 'ssh_password', None),
                 iso_checksum=getattr(args, 'iso_checksum', None),
-                scripts=getattr(args, 'scripts', None),
-                build_script=getattr(args, 'build_script', None),
+                scripts=getattr(args, 'scripts', []),
+                preseed_file=getattr(args, 'preseed_file', None),
                 export_path=getattr(args, 'export_path', None),
                 packer_template=getattr(args, 'packer_template', None)
             )
             result = packer.build()
-            logger.info(f"Packer build result: {result}")
+            logger.info(f"Packer build successful: {result}")
         else:
             logger.info("Running Kroltin CLI")
 

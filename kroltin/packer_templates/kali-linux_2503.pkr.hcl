@@ -9,6 +9,7 @@ variable "ssh_password" { type = string }
 variable "iso_urls"     { type = list(string) }
 variable "iso_checksum" { type = string }
 variable "scripts"      { type = list(string) }
+variable "preseed_file" { type = string }
 
 source "virtualbox-iso" "vm" {
   boot_command = [
@@ -16,7 +17,7 @@ source "virtualbox-iso" "vm" {
     "install auto=true priority=critical vga=788 --- quiet ",
     "ipv6.disable_ipv6=1 net.ifnames=0 biosdevname=0 ",
     "locale=en_US ","keymap=us ",
-    "preseed/url=http://{{ .HTTPIP }}:{{ .HTTPPort }}/preseed-minimal.cfg ",
+  "preseed/url=http://{{ .HTTPIP }}:{{ .HTTPPort }}/${var.preseed_file} ",
     "<enter>"
   ]
 
@@ -33,7 +34,7 @@ source "virtualbox-iso" "vm" {
   http_directory       = "preseed-files"
   ssh_username         = var.ssh_username
   ssh_password         = var.ssh_password
-  ssh_port             = 22
+  ssh_port             = "22"
   ssh_timeout          = "3600s"
   hard_drive_interface = "sata"
   vboxmanage           = [["modifyvm","{{ .Name }}","--vram","64"]]

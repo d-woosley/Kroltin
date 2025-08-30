@@ -1,4 +1,5 @@
 import time
+from getpass import getpass
 from argparse import ArgumentParser
 
 
@@ -7,6 +8,8 @@ def load_args():
         description="A Command and Control (C2) service for penetration testing",
         epilog="by: Duncan Woosley (github.com/d-woosley)",
     )
+
+    timestamp = time.strftime('%Y%m%d_%H%M%S')
 
     # Add global arguments
     parser.add_argument(
@@ -97,9 +100,9 @@ def load_args():
     build_parser.add_argument(
         "--ssh-password",
         dest="ssh_password",
-        help="SSH password for the VM (required)",
+        help="SSH password for the VM (will prompt if omitted)",
         type=str,
-        required=True
+        required=False
     )
     build_parser.add_argument(
         "--iso-checksum",
@@ -118,16 +121,10 @@ def load_args():
     build_parser.add_argument(
         "-pf",
         "--preseed-file",
-        dest="build_script",
-        help="Optional custom build script to run during packer build"
+        dest="preseed_file",
+        help="Custom preseed file to run during packer build",
+        required=True
     )
-    build_parser.add_argument(
-        "-bs",
-        "--build-script",
-        dest="build_script",
-        help="Optional custom build script to run during packer build"
-    )
-    timestamp = time.strftime('%Y%m%d_%H%M%S')
     build_parser.add_argument(
         "--export-path",
         dest="export_path",
@@ -137,5 +134,16 @@ def load_args():
 
     # Get arg results
     args = parser.parse_args()
+
+    # If password not provided on CLI, prompt for it securely
+    if getattr(args, 'command', None) == 'build' and not args.ssh_password:
+        # keep prompting until non-empty value provided
+        while not args.ssh_password:
+            try:
+                args.ssh_password = getpass(prompt='SSH password: ')
+            except (KeyboardInterrupt, EOFError):
+                # Restore a clean newline on interrupt and exit
+                print('')
+                raise
 
     return(args)
