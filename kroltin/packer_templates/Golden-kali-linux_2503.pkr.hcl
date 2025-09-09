@@ -1,6 +1,6 @@
 locals { version = formatdate("YYYY.MM.DD", timestamp()) }
 
-variable "name"       { type = string }
+variable "name"         { type = string }
 variable "cpus"         { type = number }
 variable "memory"       { type = number }
 variable "disk_size"    { type = number }
@@ -10,6 +10,7 @@ variable "iso_urls"     { type = list(string) }
 variable "iso_checksum" { type = string }
 variable "scripts"      { type = list(string) }
 variable "preseed_file" { type = string }
+variable "export_path"  { type = string }
 
 source "virtualbox-iso" "vm" {
   boot_command = [
@@ -38,8 +39,8 @@ source "virtualbox-iso" "vm" {
   ssh_timeout          = "3600s"
   hard_drive_interface = "sata"
   vboxmanage           = [["modifyvm","{{ .Name }}","--vram","64"]]
-  keep_registered      = true
-  output_directory     = "${var.name}"
+  keep_registered      = false
+  output_directory     = "${var.export_path}"
   shutdown_command     = "echo '${var.ssh_password}' | sudo -S shutdown -P now"
 }
 
@@ -56,8 +57,8 @@ build {
   post-processors {
     post-processor "shell-local" {
       inline = [
-        "VBoxManage export '${var.name}' --output '${var.name}-${local.version}.ova'",
-        "sha256sum '${var.name}-${local.version}.ova' > '${var.name}-${local.version}.ova.sha256'",
+        "VBoxManage export '${var.name}' --output '${var.export_path}/${var.name}-${local.version}.ova'",
+        "sha256sum '${var.export_path}/${var.name}-${local.version}.ova' > '${var.export_path}/${var.name}-${local.version}.ova.sha256'",
         "VBoxManage unregistervm '${var.name}' --delete || true"
       ]
     }

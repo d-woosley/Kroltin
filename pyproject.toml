@@ -26,7 +26,10 @@ kroltin = "kroltin"
 
 [tool.setuptools.package-data]
 kroltin = [
-    "packer_templates/*.json"
+    "packer_templates/*.pkr.hcl",
+    "scripts/*.sh",
+    "scripts/*.ps1",
+    "preseed-files/*.cfg"
 ]
 
 [build-system]

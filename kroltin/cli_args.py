@@ -41,10 +41,18 @@ def load_args():
     # Add subparsers
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    # Build subcommand
+    # Golden subcommand: build a new VM from ISO using packer
     build_parser = subparsers.add_parser(
-        "build",
-        help="Run a packer VM build"
+        "golden",
+        help="Run a packer VM build (golden image)"
+    )
+    build_parser.add_argument(
+        "--vm-type",
+        dest="vm_type",
+        help="Type of VM to build (required): vmware, virtualbox, hyperv, aws, azure, gcp",
+        type=str,
+        choices=["vmware", "virtualbox", "hyperv", "aws", "azure", "gcp"],
+        required=True
     )
     build_parser.add_argument(
         "--packer-template",
@@ -132,17 +140,76 @@ def load_args():
         help="Optional export path for the built VM (default: kroltin_vm_TIMESTAMP)"
     )
 
+    # Configure subcommand: take an existing OVF, run configuration scripts, export new OVF
+    configure_parser = subparsers.add_parser(
+        "configure",
+        help="Configure an existing OVF/OVA using the VirtualBox OVF/OVA packer builder"
+    )
+    configure_parser.add_argument(
+        "--vm-type",
+        dest="vm_type",
+        help="Type of VM to configure (required): vmware, virtualbox, hyperv, aws, azure, gcp",
+        type=str,
+        choices=["vmware", "virtualbox", "hyperv", "aws", "azure", "gcp"],
+        required=True
+    )
+    configure_parser.add_argument(
+        "--packer-template",
+        dest="packer_template",
+        help="Path to the packer template file (HCL or JSON).",
+        type=str,
+        required=True
+    )
+    configure_parser.add_argument(
+        "--ovf-file",
+        dest="ovf_file",
+        help="Path to the OVF/OVA file to import",
+        type=str,
+        required=True
+    )
+    configure_parser.add_argument(
+        "--vmname",
+        dest="vmname",
+        help="Packer 'vmname' variable (optional)",
+        type=str,
+        default=time.strftime('kroltin-%Y%m%d_%H%M%S')
+    )
+    configure_parser.add_argument(
+        "--ssh-username",
+        dest="ssh_username",
+        help="SSH username for the VM (required)",
+        type=str,
+        required=True
+    )
+    configure_parser.add_argument(
+        "--ssh-password",
+        dest="ssh_password",
+        help="SSH password for the VM (will prompt if omitted)",
+        type=str,
+        required=False
+    )
+    configure_parser.add_argument(
+        "--scripts",
+        dest="scripts",
+        nargs='*',
+        help="Optional list of scripts to run inside the VM (space separated)",
+        default=[]
+    )
+    configure_parser.add_argument(
+        "--export-path",
+        dest="export_path",
+        default=f"kroltin_configured_vm_{timestamp}",
+        help="Optional export path for the configured VM (default: kroltin_configured_vm_TIMESTAMP)"
+    )
+
     # Get arg results
     args = parser.parse_args()
 
-    # If password not provided on CLI, prompt for it securely
-    if getattr(args, 'command', None) == 'build' and not args.ssh_password:
-        # keep prompting until non-empty value provided
+    if getattr(args, 'command', None) in ('golden', 'configure') and not args.ssh_password:
         while not args.ssh_password:
             try:
                 args.ssh_password = getpass(prompt='SSH password: ')
             except (KeyboardInterrupt, EOFError):
-                # Restore a clean newline on interrupt and exit
                 print('')
                 raise
 
