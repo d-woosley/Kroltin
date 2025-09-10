@@ -95,7 +95,7 @@ class Packer:
         cmd = self._build_packer_cmd(packer_varables, packer_template)
         return self._run_packer(cmd=cmd)    
     
-    #################### Internal Methods ####################
+    #################### Helper Methods ####################
 
     def _check_file_exists(self, path) -> bool:
         if not os.path.exists(path):
