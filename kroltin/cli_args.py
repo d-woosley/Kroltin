@@ -49,9 +49,9 @@ def load_args():
     build_parser.add_argument(
         "--vm-type",
         dest="vm_type",
-        help="Type of VM to build (required): vmware, virtualbox, hyperv, aws, azure, gcp",
+        help="Type of VM to build (required): vmware, virtualbox, hyperv, all",
         type=str,
-        choices=["vmware", "virtualbox", "hyperv", "aws", "azure", "gcp"],
+        choices=["vmware", "virtualbox", "hyperv", "all"],
         required=True
     )
     build_parser.add_argument(
@@ -68,7 +68,6 @@ def load_args():
         nargs='+',
         help="One or more paths or URLs to ISO files to use for the build (pass multiple separated by space)"
     )
-    # Map Packer variables to CLI options
     build_parser.add_argument(
         "--vmname",
         dest="vmname",
@@ -140,30 +139,30 @@ def load_args():
         help="Optional export path for the built VM (default: kroltin_vm_TIMESTAMP)"
     )
 
-    # Configure subcommand: take an existing OVF, run configuration scripts, export new OVF
+    # Configure subcommand: take an existing VM, run configuration scripts, export new VM
     configure_parser = subparsers.add_parser(
         "configure",
-        help="Configure an existing OVF/OVA using the VirtualBox OVF/OVA packer builder"
+        help="Configure an new VM image using an exsisting golden VM"
     )
     configure_parser.add_argument(
         "--vm-type",
         dest="vm_type",
-        help="Type of VM to configure (required): vmware, virtualbox, hyperv, aws, azure, gcp",
+        help="Type of VM to configure (required): vmware, virtualbox, hyperv, all",
         type=str,
-        choices=["vmware", "virtualbox", "hyperv", "aws", "azure", "gcp"],
+        choices=["vmware", "virtualbox", "hyperv", "all"],
         required=True
     )
     configure_parser.add_argument(
         "--packer-template",
         dest="packer_template",
-        help="Path to the packer template file (HCL or JSON).",
+        help="Path to the packer template file (HCL).",
         type=str,
         required=True
     )
     configure_parser.add_argument(
-        "--ovf-file",
-        dest="ovf_file",
-        help="Path to the OVF/OVA file to import",
+        "--vm-file",
+        dest="vm_file",
+        help="Path to the VM file to import",
         type=str,
         required=True
     )

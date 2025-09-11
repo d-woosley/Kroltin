@@ -33,9 +33,10 @@ class Packer:
         This maps the Packer variables expected by an ISO-based template.
         """
         self.logger.info(
-            "Starting golden build with ISOs: %s, vmname: %s, cpus: %s, memory: %s, disk_size: %s, build_script: %s, export_path: %s",
+            "Starting golden build with ISOs: %s, vmname: %s, vm_type: %s, cpus: %s, memory: %s, disk_size: %s, build_script: %s, export_path: %s",
             iso_urls,
             self.vmname,
+            self.vm_type,
             cpus,
             memory,
             disk_size,
@@ -44,7 +45,7 @@ class Packer:
         )
         packer_varables = [
             f"\'name={self.vmname}\'",
-            f"vm_type={self.vm_type}",
+            f"vm_type=[{self._map_sources(self.vm_type, build='golden')}]",
             f"cpus={cpus}",
             f"memory={memory}",
             f"disk_size={disk_size}",
@@ -76,16 +77,17 @@ class Packer:
           - name, ssh_username, ssh_password, scripts, export_path
         """
         self.logger.info(
-            "Starting configure with OVF: %s, vmname: %s, scripts: %s, export_path: %s",
+            "Starting VM configure: %s, vmname: %s, vm_type: %s, scripts: %s, export_path: %s",
             vm_file,
             self.vmname,
+            self.vm_type,
             scripts,
             export_path,
         )
         packer_varables = [
             f"\'name={self.vmname}\'",
             f"vm_file={vm_file}",
-            f"vm_type={self.vm_type}",
+            f"vm_type=[{self._map_sources(self.vm_type, build='configure')}]",
             f"ssh_username={ssh_username}",
             f"ssh_password={ssh_password}",
             f"scripts=[{self._quote_list(scripts)}]",
@@ -112,7 +114,7 @@ class Packer:
 
     def _run_packer(self, cmd: list) -> None:
         self.logger.info("Running Packer command: %s", ' '.join(cmd))
-        returncode, stdout, stderr = self.run_command_stream(cmd)
+        returncode, stdout, stderr = run_command_stream(cmd)
         if returncode == 0:
             self.logger.info("Packer golden build completed successfully. stdout:\n%s\nstderr:\n%s",
                 stdout,
@@ -129,3 +131,28 @@ class Packer:
     
     def _quote_list(self, items: list) -> str:
         return ",".join([f'\"{u}\"' for u in items])
+    
+    def _map_sources(self, type: str, build: str) -> str:
+        if build == "golden":
+            mapping = {
+                "vmware": "vmware-iso",
+                "virtualbox": "virtualbox-iso",
+                "hyperv": "hyperv-iso",
+            }
+        elif build == "configure":
+            mapping = {
+                "vmware": "vmware-vmx",
+                "virtualbox": "virtualbox-ovf",
+                "hyperv": "hyperv-vmcx",
+            }
+        else:
+            raise ValueError(f"Unknown build_type: {build}")
+        
+        if type.lower() == "all":
+            type = [f"\"source.{v}.vm\"" for v in mapping.values()]
+            return ",".join(type)
+
+        if type.lower() not in mapping:
+            raise ValueError(f"Unsupported type '{type}' for build_type '{build}'")
+
+        return f"source.{mapping.get(type.lower(), type)}.vm"

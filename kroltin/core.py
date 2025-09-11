@@ -13,7 +13,7 @@ class Kroltin:
         )
 
     def cli(self):
-        if self.args.cmd == 'golden':
+        if self.args.command == 'golden':
             result = self.packer.golden(
                 packer_template=self.args.packer_template,
                 iso_urls=self.args.iso_urls,
@@ -28,10 +28,10 @@ class Kroltin:
                 export_path=self.args.export_path,
             )
             self.logger.info(f"Packer golden build successful: {result}")
-        elif self.args.cmd == 'configure':
+        elif self.args.command == 'configure':
             result = self.packer.configure(
                 packer_template=self.args.packer_template,
-                ovf_file=self.args.ovf_file,
+                vm_file=self.args.vm_file,
                 ssh_username=self.args.ssh_username,
                 ssh_password=self.args.ssh_password,
                 scripts=self.args.scripts,

@@ -45,7 +45,7 @@ source "virtualbox-iso" "vm" {
 }
 
 build {
-  sources = ["source.virtualbox-iso.vm"]
+  sources = var.scripts
 
   provisioner "shell" {
     environment_vars = ["HOME_DIR=/home/${var.ssh_username}"]
