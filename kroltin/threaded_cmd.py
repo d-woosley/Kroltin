@@ -14,8 +14,6 @@ def run_command_stream(cmd, cwd=None, env=None):
     captured full outputs (joined by newlines). Lines are printed to
     the process stdout/stderr as they arrive and also logged.
     """
-    logger.debug("Executing command: %s", cmd)
-
     # Start the subprocess with pipes for stdout/stderr
     process = subprocess.Popen(
         cmd,

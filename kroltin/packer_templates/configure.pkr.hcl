@@ -2,6 +2,7 @@ locals { version = formatdate("YYYY.MM.DD", timestamp()) }
 
 variable "name"         { type = string }
 variable "vm_file"      { type = string }
+variable "vm_type"      { type = list(string) }
 variable "ssh_username" { type = string }
 variable "ssh_password" { type = string }
 variable "scripts"      { type = list(string) }
@@ -22,7 +23,7 @@ source "virtualbox-ovf" "import" {
 }
 
 build {
-  sources = ["source.virtualbox-ovf.import"]
+  sources = var.vm_type
 
   provisioner "shell" {
     environment_vars = ["HOME_DIR=/home/${var.ssh_username}"]
