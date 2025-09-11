@@ -8,7 +8,7 @@ variable "ssh_password" { type = string }
 variable "scripts"      { type = list(string) }
 variable "export_path"  { type = string }
 
-source "virtualbox-ovf" "import" {
+source "virtualbox-ovf" "vm" {
   source_path = var.ovf_file
   vm_name = var.name
   communicator = "ssh"
