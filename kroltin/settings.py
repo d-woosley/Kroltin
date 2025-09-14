@@ -60,6 +60,9 @@ class KroltinSettings:
         if not path.isfile(script_path):
             self.logger.error(f"Script file not found: {script_path}")
             return False
+        if not script_path.endswith('.sh'):
+            self.logger.error(f"Script file must have a .sh extension: {script_path}")
+            return False
         dest = path.join(self.scripts_dir, path.basename(script_path))
         try:
             copy2(script_path, dest)
@@ -85,6 +88,9 @@ class KroltinSettings:
         """Add a packer template to the packer_templates directory."""
         if not path.isfile(packer_template_path):
             self.logger.error(f"Packer template not found: {packer_template_path}")
+            return False
+        if not (packer_template_path.endswith('.hcl') or packer_template_path.endswith('.json')):
+            self.logger.error(f"Packer template must have a .hcl or .json extension: {packer_template_path}")
             return False
         dest = path.join(self.packer_dir, path.basename(packer_template_path))
         try:
