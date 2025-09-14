@@ -300,9 +300,8 @@ def load_args():
             for script in args.scripts:
                 validate_file_exists(script, settings.check_script_exists)
 
-    # Prompt for ssh password if missing
-    if not args.ssh_password:
-        while not args.ssh_password:
+        # Prompt for ssh password if missing
+        if not getattr(args, 'ssh_password', None):
             try:
                 args.ssh_password = getpass(prompt='SSH password: ')
             except (KeyboardInterrupt, EOFError):
