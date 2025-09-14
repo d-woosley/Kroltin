@@ -1,21 +1,57 @@
 from kroltin.cli_args import load_args
 from kroltin.logger import setup_logging
 from kroltin.packer import Packer
+from kroltin.settings import KroltinSettings
 import logging
 
 class Kroltin:
     def __init__(self):
         self.args = load_args()
         self.logger = self._setup_logger()
-        self.packer = Packer(
-            vmname=self.args.vmname,
-            vm_type=self.args.vm_type
-        )
+        self.packer = Packer()
 
     def cli(self):
-        if self.args.command == 'golden':
+        if self.args.command == 'settings':
+            settings = KroltinSettings()
+            if self.args.list_all:
+                settings.list_all()
+            elif self.args.list_scripts:
+                settings.list_scripts()
+            elif self.args.list_packer_templates:
+                settings.list_packer_templates()
+            elif self.args.add_script:
+                self.logger.info(f"Adding script: {self.args.add_script}")
+                if settings.add_script(self.args.add_script):
+                    self.logger.info("Script added successfully.")
+                    settings.list_scripts()
+                else:
+                    self.logger.error("Failed to add script.")
+            elif self.args.remove_script:
+                self.logger.info(f"Removing script: {self.args.remove_script}")
+                if settings.remove_script(self.args.remove_script):
+                    self.logger.info("Script removed successfully.")
+                    settings.list_scripts()
+                else:
+                    self.logger.error("Failed to remove script.")
+            elif self.args.add_packer_template:
+                self.logger.info(f"Adding packer template: {self.args.add_packer_template}")
+                if settings.add_packer_template(self.args.add_packer_template):
+                    self.logger.info("Packer template added successfully.")
+                    settings.list_packer_templates()
+                else:
+                    self.logger.error("Failed to add packer template.")
+            elif self.args.remove_packer_template:
+                self.logger.info(f"Removing packer template: {self.args.remove_packer_template}")
+                if settings.remove_packer_template(self.args.remove_packer_template):
+                    self.logger.info("Packer template removed successfully.")
+                    settings.list_packer_templates()
+                else:
+                    self.logger.error("Failed to remove packer template.")
+        elif self.args.command == 'golden':
             result = self.packer.golden(
                 packer_template=self.args.packer_template,
+                vmname=self.args.vmname,
+                vm_type=self.args.vm_type,
                 iso_urls=self.args.iso_urls,
                 cpus=self.args.cups,
                 memory=self.args.memory,
@@ -31,6 +67,8 @@ class Kroltin:
         elif self.args.command == 'configure':
             result = self.packer.configure(
                 packer_template=self.args.packer_template,
+                vmname=self.args.vmname,
+                vm_type=self.args.vm_type,
                 vm_file=self.args.vm_file,
                 ssh_username=self.args.ssh_username,
                 ssh_password=self.args.ssh_password,
