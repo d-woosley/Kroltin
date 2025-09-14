@@ -3,20 +3,20 @@ import logging
 import os
 
 class Packer:
-    def __init__(self, vmname=None, vm_type=None):
+    def __init__(self):
         """Packer helper.
 
-        The constructor only stores the VM name. All other variables used by
+        The constructor is minimal. All variables used by
         Packer CLI invocations are provided to the `golden` and `configure`
-        methods (this keeps the init minimal as requested).
+        methods.
         """
-        self.vmname = vmname
-        self.vm_type = vm_type
         self.logger = logging.getLogger(__name__)
 
     def golden(
         self,
         packer_template,
+        vmname=None,
+        vm_type=None,
         iso_urls=None,
         cpus=None,
         memory=None,
@@ -35,8 +35,8 @@ class Packer:
         self.logger.info(
             "Starting golden build with ISOs: %s, vmname: %s, vm_type: %s, cpus: %s, memory: %s, disk_size: %s, build_script: %s, export_path: %s",
             iso_urls,
-            self.vmname,
-            self.vm_type,
+            vmname,
+            vm_type,
             cpus,
             memory,
             disk_size,
@@ -44,8 +44,8 @@ class Packer:
             export_path,
         )
         packer_varables = [
-            f"\'name={self.vmname}\'",
-            f"vm_type=[{self._map_sources(self.vm_type, build='golden')}]",
+            f"'name={vmname}'",
+            f"vm_type=[{self._map_sources(vm_type, build='golden')}]",
             f"cpus={cpus}",
             f"memory={memory}",
             f"disk_size={disk_size}",
@@ -64,6 +64,8 @@ class Packer:
     def configure(
         self,
         packer_template,
+        vmname=None,
+        vm_type=None,
         vm_file=None,
         ssh_username=None,
         ssh_password=None,
@@ -79,15 +81,15 @@ class Packer:
         self.logger.info(
             "Starting VM configure: %s, vmname: %s, vm_type: %s, scripts: %s, export_path: %s",
             vm_file,
-            self.vmname,
-            self.vm_type,
+            vmname,
+            vm_type,
             scripts,
             export_path,
         )
         packer_varables = [
-            f"\'name={self.vmname}\'",
+            f"'name={vmname}'",
             f"vm_file={vm_file}",
-            f"vm_type=[{self._map_sources(self.vm_type, build='configure')}]",
+            f"vm_type=[{self._map_sources(vm_type, build='configure')}]",
             f"ssh_username={ssh_username}",
             f"ssh_password={ssh_password}",
             f"scripts=[{self._quote_list(scripts)}]",
@@ -97,7 +99,9 @@ class Packer:
         cmd = self._build_packer_cmd(packer_varables, packer_template)
         return self._run_packer(cmd=cmd)    
     
-    #################### Helper Methods ####################
+    # ----------------------------------------------------------------------
+    # Helper Methods
+    # ----------------------------------------------------------------------
 
     def _check_file_exists(self, path) -> bool:
         if not os.path.exists(path):

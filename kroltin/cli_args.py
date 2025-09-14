@@ -41,6 +41,67 @@ def load_args():
     # Add subparsers
     subparsers = parser.add_subparsers(dest="command", required=True)
 
+    # Settings subcommand for script and packer file management
+    settings_parser = subparsers.add_parser(
+        "settings",
+        help="Manage scripts and packer template files"
+    )
+    settings_parser.add_argument(
+        "-ls", "--list-all",
+        dest="list_all",
+        help="List all scripts and packer template files",
+        action="store_true",
+        default=False
+    )
+    settings_parser.add_argument(
+        "-ls-s", "--list-scripts",
+        dest="list_scripts",
+        help="List available scripts",
+        action="store_true",
+        default=False
+    )
+    settings_parser.add_argument(
+        "-ls-t", "--list-templates",
+        dest="list_packer_templates",
+        help="List available packer templates",
+        action="store_true",
+        default=False
+    )
+    settings_parser.add_argument(
+        "-as", "--add-script",
+        dest="add_script",
+        metavar="<SCRIPT_PATH>",
+        help="Add a script to the available scripts",
+        type=str,
+        default=None
+    )
+    settings_parser.add_argument(
+        "-at", "--add-packer-template",
+        dest="add_packer_template",
+        metavar="<PACKER_TEMPLATE_PATH>",
+        help="Add a packer template to the available packer templates",
+        type=str,
+        default=None
+    )
+
+    settings_parser.add_argument(
+        "-rm-s", "--rm-script",
+        dest="remove_script",
+        metavar="<SCRIPT_NAME>",
+        help="Remove a script from the available scripts",
+        type=str,
+        default=None
+    )
+
+    settings_parser.add_argument(
+        "-rm-t", "--rm-packer-template",
+        dest="remove_packer_template",
+        metavar="<PACKER_TEMPLATE_NAME>",
+        help="Remove a packer template from the available packer templates",
+        type=str,
+        default=None
+    )
+
     # Golden subcommand: build a new VM from ISO using packer
     build_parser = subparsers.add_parser(
         "golden",
