@@ -1,9 +1,14 @@
 import time
+import os
 from getpass import getpass
-from argparse import ArgumentParser
+from argparse import ArgumentParser, ArgumentError
+
+from kroltin.settings import KroltinSettings
 
 
 def load_args():
+    # Import KroltinSettings for existence checks
+    settings = KroltinSettings()
     parser = ArgumentParser(
         description="A Command and Control (C2) service for penetration testing",
         epilog="by: Duncan Woosley (github.com/d-woosley)",
@@ -265,7 +270,38 @@ def load_args():
     # Get arg results
     args = parser.parse_args()
 
-    if getattr(args, 'command', None) in ('golden', 'configure') and not args.ssh_password:
+    # Validate script/template existence for add/remove operations
+    def validate_file_exists(file_name, check_method):
+        if file_name is None:
+            return True
+        if check_method(file_name):
+            return True
+        if os.path.isfile(file_name):
+            return True
+        parser.error(f"File '{file_name}' does not exist in Kroltin or local path.")
+
+    # Check for add/remove script
+    if getattr(args, 'add_script', None):
+        validate_file_exists(args.add_script, settings.check_script_exists)
+    if getattr(args, 'remove_script', None):
+        validate_file_exists(args.remove_script, settings.check_script_exists)
+
+    # Check for add/remove packer template
+    if getattr(args, 'add_packer_template', None):
+        validate_file_exists(args.add_packer_template, settings.check_packer_template_exists)
+    if getattr(args, 'remove_packer_template', None):
+        validate_file_exists(args.remove_packer_template, settings.check_packer_template_exists)
+
+    # Check all scripts in --scripts for existence
+    if getattr(args, 'command', None) in ('golden', 'configure'):
+        if getattr(args, 'packer_template', None):
+            validate_file_exists(args.packer_template, settings.check_packer_template_exists)
+        if getattr(args, 'scripts', None):
+            for script in args.scripts:
+                validate_file_exists(script, settings.check_script_exists)
+
+    # Prompt for ssh password if missing
+    if not args.ssh_password:
         while not args.ssh_password:
             try:
                 args.ssh_password = getpass(prompt='SSH password: ')
