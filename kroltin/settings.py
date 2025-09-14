@@ -13,6 +13,20 @@ class KroltinSettings:
         self.packer_dir = str(resources.files('kroltin') / 'packer_templates')
 
     # ----------------------------------------------------------------------
+    # Check Methods
+    # ----------------------------------------------------------------------
+
+    def check_script_exists(self, script_name):
+        """Check if a script exists in the scripts directory."""
+        script_path = path.join(self.scripts_dir, script_name)
+        return path.isfile(script_path)
+
+    def check_packer_template_exists(self, template_name):
+        """Check if a packer template exists in the packer_templates directory."""
+        template_path = path.join(self.packer_dir, template_name)
+        return path.isfile(template_path)
+
+    # ----------------------------------------------------------------------
     # List Methods
     # ----------------------------------------------------------------------
 
