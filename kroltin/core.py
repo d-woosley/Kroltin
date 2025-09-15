@@ -22,9 +22,11 @@ class Kroltin:
                 settings.list_packer_templates()
             elif self.args.list_golden_images:
                 settings.list_golden_images()
+            elif self.args.import_golden_image:
+                settings.import_golden_image(self.args.import_golden_image)
             elif self.args.export_golden_image:
                 image_name = self.args.export_golden_image
-                dest_path = getattr(self.args, 'export_golden_image_path', '.') or '.'
+                dest_path = self.args.export_golden_image_path
                 settings.export_golden_image(image_name, dest_path)
             elif self.args.remove_golden_image:
                 settings.remove_golden_image(self.args.remove_golden_image)
