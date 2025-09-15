@@ -173,4 +173,4 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 # Golden images output (do not commit testing VMs)
-golden_images/
+kroltin/golden_images/
