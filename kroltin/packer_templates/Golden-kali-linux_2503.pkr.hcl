@@ -1,6 +1,7 @@
 locals { version = formatdate("YYYY.MM.DD", timestamp()) }
 
 variable "name"         { type = string }
+variable "vm_type"      { type = list(string) }
 variable "cpus"         { type = number }
 variable "memory"       { type = number }
 variable "disk_size"    { type = number }
@@ -45,7 +46,7 @@ source "virtualbox-iso" "vm" {
 }
 
 build {
-  sources = var.scripts
+  sources = var.vm_type
 
   provisioner "shell" {
     environment_vars = ["HOME_DIR=/home/${var.ssh_username}"]
