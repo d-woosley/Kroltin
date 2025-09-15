@@ -1,20 +1,27 @@
 import logging
 
+# ANSI Colors
+RED = "\033[91m"
+CYAN = "\033[96m"
+GREY = "\033[37m"
+GREEN = "\033[92m"
+RESET = "\033[0m"
+
 class ScreenFormatter(logging.Formatter):
     def __init__(self, fmt, datefmt=None):
         super().__init__(fmt, datefmt)
 
     def format(self, record):
         if "created" in record.msg:
-            symbol = "[+]"
+            symbol = f"  {GREEN}[+]{RESET}"
         elif record.levelno == logging.DEBUG:
-            symbol = "[i]"
+            symbol = f"  {CYAN}[i]{RESET}"
         elif record.levelno == logging.WARNING:
-            symbol = "[!]"
+            symbol = f"  {RED}[!]{RESET}"
         elif record.levelno == logging.ERROR:
-            symbol = "[x]"
+            symbol = f"  {RED}[x]{RESET}"
         else:
-            symbol = "[-]"
+            symbol = "  [-]"
         original_msg = super().format(record)
         return f"{symbol} {original_msg}"
 

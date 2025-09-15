@@ -5,6 +5,8 @@ from shutil import copy2
 import importlib.resources as resources
 import logging
 
+from kroltin.packer import Packer
+
 
 class KroltinSettings:
     def __init__(self):
@@ -30,19 +32,15 @@ class KroltinSettings:
     # List Methods
     # ----------------------------------------------------------------------
 
-    def list_scripts(self):
+    def list_scripts(self) -> None:
         """Print a list of all script files in the scripts directory."""
         self._get_scripts()
-        print("Scripts:")
-        for file in self.scripts_list:
-            print(f"  - {file}")
+        self.logger.info(f"Scripts: {', '.join(self.scripts_list)}")
 
-    def list_packer_templates(self):
+    def list_packer_templates(self) -> None:
         """Print a list of all packer templates in the packer_templates directory."""
         self._get_packer_templates()
-        print("Packer Templates:")
-        for template in self.packer_templates:
-            print(f"  - {template}")
+        self.logger.info(f"Templates: {', '.join(self.packer_templates)}")
 
     def list_all(self):
         """Print all packer templates and script files."""
@@ -109,9 +107,20 @@ class KroltinSettings:
         dest = path.join(self.packer_dir, path.basename(packer_template_path))
         try:
             copy2(packer_template_path, dest)
-            return True
         except Exception as e:
             self.logger.error(f"Failed to add packer template: {e}")
+            return False
+        
+        # Run packer init and validate after adding
+        packer = Packer()
+        if packer.init_template(dest) and packer.validate_template(dest):
+            return True
+        else:
+            self.logger.debug(f"Packer Init: {packer.init_template(dest)}")
+            self.logger.debug(f"Packer Validate: {packer.validate_template(dest)}")
+
+            self.remove_packer_template(dest)
+            self.logger.debug("Packer template failed init/validate after adding. Template removed.")
             return False
 
     def remove_packer_template(self, packer_template_name):

@@ -9,7 +9,7 @@ variable "scripts"      { type = list(string) }
 variable "export_path"  { type = string }
 
 source "virtualbox-ovf" "vm" {
-  source_path = var.ovf_file
+  source_path = var.vm_file
   vm_name = var.name
   communicator = "ssh"
   ssh_username = var.ssh_username

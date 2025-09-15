@@ -14,6 +14,8 @@ def run_command_stream(cmd, cwd=None, env=None):
     captured full outputs (joined by newlines). Lines are printed to
     the process stdout/stderr as they arrive and also logged.
     """
+    logger = logging.getLogger(__name__)
+
     # Start the subprocess with pipes for stdout/stderr
     process = subprocess.Popen(
         cmd,
@@ -35,7 +37,7 @@ def run_command_stream(cmd, cwd=None, env=None):
                     break
                 line = line.rstrip('\n')
                 collector.append(line)
-                print(line, flush=True)
+                logger.debug(line)
                 try:
                     if is_err:
                         log_fn.error(line)
@@ -49,7 +51,9 @@ def run_command_stream(cmd, cwd=None, env=None):
             except Exception:
                 pass
 
-    t_out = Thread(target=_reader, args=(process.stdout, stdout_lines, logger.info, False))
+    logger.debug(f"Executing command: {' '.join(cmd)}")
+
+    t_out = Thread(target=_reader, args=(process.stdout, stdout_lines, logger.debug, False))
     t_err = Thread(target=_reader, args=(process.stderr, stderr_lines, logger.error, True))
     t_out.start()
     t_err.start()
