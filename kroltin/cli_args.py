@@ -49,30 +49,43 @@ def load_args():
     # Settings subcommand for script and packer file management
     settings_parser = subparsers.add_parser(
         "settings",
-        help="Manage scripts and packer template files"
+        help="Manage scripts, packer templates, and golden images"
     )
-    settings_parser.add_argument(
+
+    # Listing group
+    listing_group = settings_parser.add_argument_group('Listing', 'List scripts, templates, and golden images')
+    listing_group.add_argument(
         "-ls", "--list-all",
         dest="list_all",
-        help="List all scripts and packer template files",
+        help="List all scripts, packer template files, and golden images",
         action="store_true",
         default=False
     )
-    settings_parser.add_argument(
+    listing_group.add_argument(
         "-ls-s", "--list-scripts",
         dest="list_scripts",
         help="List available scripts",
         action="store_true",
         default=False
     )
-    settings_parser.add_argument(
+    listing_group.add_argument(
         "-ls-t", "--list-templates",
         dest="list_packer_templates",
         help="List available packer templates",
         action="store_true",
         default=False
     )
-    settings_parser.add_argument(
+    listing_group.add_argument(
+        "-ls-g", "--list-golden-images",
+        dest="list_golden_images",
+        help="List available builds in the golden_images directory",
+        action="store_true",
+        default=False
+    )
+
+    # Adding group
+    adding_group = settings_parser.add_argument_group('Adding', 'Add scripts and packer templates')
+    adding_group.add_argument(
         "-as", "--add-script",
         dest="add_script",
         metavar="<SCRIPT_PATH>",
@@ -80,7 +93,7 @@ def load_args():
         type=str,
         default=None
     )
-    settings_parser.add_argument(
+    adding_group.add_argument(
         "-at", "--add-packer-template",
         dest="add_packer_template",
         metavar="<PACKER_TEMPLATE_PATH>",
@@ -89,7 +102,9 @@ def load_args():
         default=None
     )
 
-    settings_parser.add_argument(
+    # Removing group
+    removing_group = settings_parser.add_argument_group('Removing', 'Remove scripts, templates, and golden images')
+    removing_group.add_argument(
         "-rm-s", "--rm-script",
         dest="remove_script",
         metavar="<SCRIPT_NAME>",
@@ -97,14 +112,40 @@ def load_args():
         type=str,
         default=None
     )
-
-    settings_parser.add_argument(
+    removing_group.add_argument(
         "-rm-t", "--rm-packer-template",
         dest="remove_packer_template",
         metavar="<PACKER_TEMPLATE_NAME>",
         help="Remove a packer template from the available packer templates",
         type=str,
         default=None
+    )
+    removing_group.add_argument(
+        "-rm-g", "--rm-golden-image",
+        dest="remove_golden_image",
+        metavar="<GOLDEN_IMAGE_NAME>",
+        help="Remove a golden image from the golden_images directory (irreversible)",
+        type=str,
+        default=None
+    )
+
+    # Export group
+    export_group = settings_parser.add_argument_group('Exporting', 'Export golden images to a user-specified path')
+    export_group.add_argument(
+        "-exp-g", "--export-golden-image",
+        dest="export_golden_image",
+        metavar="<GOLDEN_IMAGE_NAME>",
+        help="Export (copy) a golden image to the current directory or to a path specified by --export-path",
+        type=str,
+        default=None
+    )
+    export_group.add_argument(
+        "--export-path",
+        dest="export_golden_image_path",
+        metavar="<DEST_PATH>",
+        help="Destination path for exported golden image (default: current directory)",
+        type=str,
+        default="."
     )
 
     # Golden subcommand: build a new VM from ISO using packer

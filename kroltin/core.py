@@ -4,6 +4,7 @@ from kroltin.packer import Packer
 from kroltin.settings import KroltinSettings
 import logging
 
+
 class Kroltin:
     def __init__(self):
         self.args = load_args()
@@ -19,6 +20,14 @@ class Kroltin:
                 settings.list_scripts()
             elif self.args.list_packer_templates:
                 settings.list_packer_templates()
+            elif self.args.list_golden_images:
+                settings.list_golden_images()
+            elif self.args.export_golden_image:
+                image_name = self.args.export_golden_image
+                dest_path = getattr(self.args, 'export_golden_image_path', '.') or '.'
+                settings.export_golden_image(image_name, dest_path)
+            elif self.args.remove_golden_image:
+                settings.remove_golden_image(self.args.remove_golden_image)
             elif self.args.add_script:
                 self.logger.info(f"Adding script: {self.args.add_script}")
                 if settings.add_script(self.args.add_script):
@@ -61,7 +70,6 @@ class Kroltin:
                 iso_checksum=self.args.iso_checksum,
                 scripts=self.args.scripts,
                 preseed_file=self.args.preseed_file,
-                export_path=self.args.export_path,
             )
             self.logger.info(f"Packer golden build successful: {result}")
         elif self.args.command == 'configure':

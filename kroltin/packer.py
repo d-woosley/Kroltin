@@ -3,6 +3,7 @@ import logging
 import os
 import importlib.resources as resources
 
+
 class Packer:
     def __init__(self):
         """Packer helper.
@@ -31,7 +32,6 @@ class Packer:
         iso_checksum=None,
         scripts=None,
         preseed_file=None,
-        export_path=None,
     ):
         """Build the VM image (golden image) using HashiCorp Packer CLI.
 
@@ -46,7 +46,7 @@ class Packer:
             memory,
             disk_size,
             preseed_file,
-            export_path,
+            self._golden_image_path(),
         )
         packer_varables = [
             f"'name={vmname}'",
@@ -60,7 +60,7 @@ class Packer:
             f"preseed_file={preseed_file}",
             f"iso_urls=[{self._quote_list(iso_urls)}]",
             f"scripts=[{self._quote_list(scripts)}]",
-            f"export_path={export_path}"
+            f"export_path={self._golden_image_path()}"
         ]
         self._check_file_exists(packer_template)
         cmd = self._build_packer_cmd(packer_varables, packer_template)
@@ -156,6 +156,12 @@ class Packer:
 
         return f"source.{mapping.get(type.lower(), type)}.vm"
     
+    def _golden_image_path(self) -> str:
+        """Return the export path for the built VM."""
+        golden_images_path = resources.files(__package__).parent / 'golden_images'
+        golden_images_path.mkdir(exist_ok=True)
+        return str(golden_images_path)
+
     # ----------------------------------------------------------------------
     # Packer Template Management
     # ----------------------------------------------------------------------
