@@ -12,7 +12,7 @@ class ScreenFormatter(logging.Formatter):
         super().__init__(fmt, datefmt)
 
     def format(self, record):
-        if "created" in record.msg:
+        if "created" in record.msg or "exported" in record.msg or "removed" in record.msg:
             symbol = f"  {GREEN}[+]{RESET}"
         elif record.levelno == logging.DEBUG:
             symbol = f"  {CYAN}[i]{RESET}"

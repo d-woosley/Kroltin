@@ -1,11 +1,14 @@
 
-import os
-from os import path, listdir
+from os import path, listdir, remove
 from shutil import copy2
 import importlib.resources as resources
 import logging
 
 from kroltin.packer import Packer
+
+# ANSI Colors
+RED="\033[91m"
+RESET="\033[0m"
 
 
 class KroltinSettings:
@@ -13,6 +16,7 @@ class KroltinSettings:
         self.logger = logging.getLogger(__name__)
         self.scripts_dir = str(resources.files('kroltin') / 'scripts')
         self.packer_dir = str(resources.files('kroltin') / 'packer_templates')
+        self.golden_images_dir = str(resources.files('kroltin') / 'golden_images')
 
     # ----------------------------------------------------------------------
     # Check Methods
@@ -42,10 +46,19 @@ class KroltinSettings:
         self._get_packer_templates()
         self.logger.info(f"Templates: {', '.join(self.packer_templates)}")
 
+    def list_golden_images(self) -> None:
+        """Print a list of all builds in the golden_images directory."""
+        builds = [f for f in listdir(self.golden_images_dir) if not f.startswith('.')]
+        if builds:
+            self.logger.info(f"Golden Images: {', '.join(builds)}")
+        else:
+            self.logger.info("No builds found in golden_images directory.")
+
     def list_all(self):
-        """Print all packer templates and script files."""
+        """Print all packer templates, script files, and golden images."""
         self.list_packer_templates()
         self.list_scripts()
+        self.list_golden_images()
 
     def _get_scripts(self):
         """Populate self.scripts_list with all .sh files in scripts directory."""
@@ -90,7 +103,7 @@ class KroltinSettings:
             self.logger.error(f"Script file not found: {script_path}")
             return False
         try:
-            os.remove(script_path)
+            remove(script_path)
             return True
         except Exception as e:
             self.logger.error(f"Failed to remove script: {e}")
@@ -130,9 +143,61 @@ class KroltinSettings:
             self.logger.error(f"Packer template not found: {packer_template_path}")
             return False
         try:
-            os.remove(packer_template_path)
+            remove(packer_template_path)
             return True
         except Exception as e:
             self.logger.error(f"Failed to remove packer template: {e}")
             return False
+        
+
+    def remove_golden_image(self, image_name):
+        """Remove a golden image from the golden_images directory after confirmation."""
+        image_path = path.join(self.golden_images_dir, image_name)
+        if not path.exists(image_path):
+            self.logger.error(f"Golden image not found: {image_path}")
+            return False
+        
+        self.logger.warning(f"{RED}WARNING: You are about to permanently delete '{image_name}' from golden_images. This action cannot be undone!{RESET}")
+        if not self._confirm_action():
+            self.logger.info("Aborted removal of golden image.")
+            return False
+        
+        try:
+            remove(image_path)
+            self.logger.info(f"Golden image '{image_name}' removed.")
+            return True
+        except Exception as e:
+            self.logger.error(f"Failed to remove golden image: {e}")
+            return False
+
+    def export_golden_image(self, image_name, dest_path):
+        """Copy a golden image from golden_images to the given destination path."""
+        src_path = path.join(self.golden_images_dir, image_name)
+        if not path.exists(src_path):
+            self.logger.error(f"Golden image not found: {src_path}")
+            return False
+        try:
+            copy2(src_path, dest_path)
+            self.logger.info(f"Golden image '{image_name}' exported to '{dest_path}'.")
+            return True
+        except Exception as e:
+            self.logger.error(f"Failed to export golden image: {e}")
+            return False
+
+    # ----------------------------------------------------------------------
+    # Helper Methods
+    # ----------------------------------------------------------------------
+
+    def _confirm_action(self, message: str = "") -> bool:
+        """Display a y/N confirmation prompt. Returns True if 'y' is selected."""
+        while True:
+            if message:
+                confirm = input(f"  [?] {message}. Are you sure you want to proceed? [y/N]: ").strip().lower()
+            else:
+                confirm = input(f"  [?] Are you sure you want to proceed? [y/N]: ").strip().lower()
+            if confirm == 'y' or confirm == 'yes':
+                return True
+            elif confirm == 'n' or confirm == 'no':
+                return False
+            self.logger.error("Response not understood. Please enter 'y' or 'n'")
 
