@@ -1,10 +1,12 @@
 
-from os import path, listdir, remove
+from os import path, listdir, remove, getcwd
 from shutil import copy2
 import importlib.resources as resources
 import logging
+import pathlib
 
 from kroltin.packer import Packer
+
 
 # ANSI Colors
 RED="\033[91m"
@@ -14,9 +16,9 @@ RESET="\033[0m"
 class KroltinSettings:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
-        self.scripts_dir = str(resources.files('kroltin') / 'scripts')
-        self.packer_dir = str(resources.files('kroltin') / 'packer_templates')
-        self.golden_images_dir = str(resources.files('kroltin') / 'golden_images')
+        self.scripts_dir = resources.files('kroltin') / 'scripts'
+        self.packer_dir = resources.files('kroltin') / 'packer_templates'
+        self.golden_images_dir = resources.files('kroltin') / 'golden_images'
 
     # ----------------------------------------------------------------------
     # Check Methods
@@ -149,7 +151,6 @@ class KroltinSettings:
             self.logger.error(f"Failed to remove packer template: {e}")
             return False
         
-
     def remove_golden_image(self, image_name):
         """Remove a golden image from the golden_images directory after confirmation."""
         image_path = path.join(self.golden_images_dir, image_name)
@@ -170,6 +171,10 @@ class KroltinSettings:
             self.logger.error(f"Failed to remove golden image: {e}")
             return False
 
+    # ----------------------------------------------------------------------
+    # Import/Export Methods
+    # ----------------------------------------------------------------------
+
     def export_golden_image(self, image_name, dest_path):
         """Copy a golden image from golden_images to the given destination path."""
         src_path = path.join(self.golden_images_dir, image_name)
@@ -178,10 +183,39 @@ class KroltinSettings:
             return False
         try:
             copy2(src_path, dest_path)
-            self.logger.info(f"Golden image '{image_name}' exported to '{dest_path}'.")
+            abs_dest_path = path.abspath(dest_path)
+            self.logger.info(f"Golden image '{image_name}' exported to '{abs_dest_path}'.")
             return True
         except Exception as e:
             self.logger.error(f"Failed to export golden image: {e}")
+            return False
+
+    def import_golden_image(self, src_path):
+        """Import a golden image VM from the given path into the golden_images directory."""
+        if path.isabs(src_path):
+            src = pathlib.Path(src_path)
+        else:
+            src = pathlib.Path(getcwd()) / src_path
+        src_name = src.name
+        dest = self.golden_images_dir / src_name
+
+        if not src.exists():
+            self.logger.error(f"Golden image source not found: {src}")
+            return False
+        
+        if dest.exists():
+            self.logger.error(f"Golden image '{src_name}' already exists in golden_images.")
+            return False
+        
+        try:
+            if src.is_dir():
+                self.logger.warning("Importing directories not supported.")
+            else:
+                copy2(str(src), str(dest))
+            print(f"Golden image '{src_name}' imported to golden_images.")
+            return True
+        except Exception as e:
+            self.logger.error(f"Failed to import golden image: {e}")
             return False
 
     # ----------------------------------------------------------------------

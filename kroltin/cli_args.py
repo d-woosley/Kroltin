@@ -7,7 +7,6 @@ from kroltin.settings import KroltinSettings
 
 
 def load_args():
-    # Import KroltinSettings for existence checks
     settings = KroltinSettings()
     parser = ArgumentParser(
         description="A Command and Control (C2) service for penetration testing",
@@ -130,8 +129,8 @@ def load_args():
     )
 
     # Export group
-    export_group = settings_parser.add_argument_group('Exporting', 'Export golden images to a user-specified path')
-    export_group.add_argument(
+    import_export_group = settings_parser.add_argument_group('Import/Export', 'Import or export golden images to/from a user-specified path')
+    import_export_group.add_argument(
         "-exp-g", "--export-golden-image",
         dest="export_golden_image",
         metavar="<GOLDEN_IMAGE_NAME>",
@@ -139,7 +138,7 @@ def load_args():
         type=str,
         default=None
     )
-    export_group.add_argument(
+    import_export_group.add_argument(
         "--export-path",
         dest="export_golden_image_path",
         metavar="<DEST_PATH>",
@@ -147,13 +146,22 @@ def load_args():
         type=str,
         default="."
     )
+    import_export_group.add_argument(
+        "-im-g",
+        "--import-golden-image",
+        dest="import_golden_image",
+        metavar="<GOLDEN_IMAGE_PATH>",
+        help="Import a golden image VM from the given path into the golden_images directory",
+        type=str,
+        default=None
+    )
 
     # Golden subcommand: build a new VM from ISO using packer
-    build_parser = subparsers.add_parser(
+    golden_parser = subparsers.add_parser(
         "golden",
         help="Run a packer VM build (golden image)"
     )
-    build_parser.add_argument(
+    golden_parser.add_argument(
         "--vm-type",
         dest="vm_type",
         help="Type of VM to build (required): vmware, virtualbox, hyperv, all",
@@ -161,42 +169,42 @@ def load_args():
         choices=["vmware", "virtualbox", "hyperv", "all"],
         required=True
     )
-    build_parser.add_argument(
+    golden_parser.add_argument(
         "--packer-template",
         dest="packer_template",
         help="Path to the packer template file (HCL or JSON).",
         type=str,
         required=True
     )
-    build_parser.add_argument(
+    golden_parser.add_argument(
         "--iso",
         dest="iso_urls",
         required=True,
         nargs='+',
         help="One or more paths or URLs to ISO files to use for the build (pass multiple separated by space)"
     )
-    build_parser.add_argument(
+    golden_parser.add_argument(
         "--vmname",
         dest="vmname",
         help="Packer 'vmname' variable (default: kroltin-$DATE)",
         type=str,
         default=time.strftime('kroltin-%Y%m%d_%H%M%S')
     )
-    build_parser.add_argument(
+    golden_parser.add_argument(
         "--cpus",
         dest="cpus",
         help="Number of CPUs for the VM",
         type=int,
         default=2
     )
-    build_parser.add_argument(
+    golden_parser.add_argument(
         "--memory",
         dest="memory",
         help="Memory (MB) for the VM",
         type=int,
         default=2048
     )
-    build_parser.add_argument(
+    golden_parser.add_argument(
         "--disk-size",
         "-ds",
         dest="disk_size",
@@ -204,46 +212,40 @@ def load_args():
         type=int,
         default=81920
     )
-    build_parser.add_argument(
+    golden_parser.add_argument(
         "--ssh-username",
         dest="ssh_username",
         help="SSH username for the VM (required)",
         type=str,
         required=True
     )
-    build_parser.add_argument(
+    golden_parser.add_argument(
         "--ssh-password",
         dest="ssh_password",
         help="SSH password for the VM (will prompt if omitted)",
         type=str,
         required=False
     )
-    build_parser.add_argument(
+    golden_parser.add_argument(
         "--iso-checksum",
         dest="iso_checksum",
         help="Checksum for the ISO (required)",
         type=str,
         required=True
     )
-    build_parser.add_argument(
+    golden_parser.add_argument(
         "--scripts",
         dest="scripts",
         nargs='*',
         help="Optional list of scripts to pass to the packer build (space separated)",
         default=[]
     )
-    build_parser.add_argument(
+    golden_parser.add_argument(
         "-pf",
         "--preseed-file",
         dest="preseed_file",
         help="Custom preseed file to run during packer build",
         required=True
-    )
-    build_parser.add_argument(
-        "--export-path",
-        dest="export_path",
-        default=f"kroltin_vm_{timestamp}",
-        help="Optional export path for the built VM (default: kroltin_vm_TIMESTAMP)"
     )
 
     # Configure subcommand: take an existing VM, run configuration scripts, export new VM
