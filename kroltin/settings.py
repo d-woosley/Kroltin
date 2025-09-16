@@ -20,6 +20,12 @@ class KroltinSettings:
         self.packer_dir = resources.files('kroltin') / 'packer_templates'
         self.golden_images_dir = resources.files('kroltin') / 'golden_images'
 
+        # Ensure golden_images directory exists
+        golden_images_path = pathlib.Path(self.golden_images_dir)
+        if not golden_images_path.exists():
+            self.logger.debug(f"Creating golden_images directory at: {golden_images_path}")
+            golden_images_path.mkdir(parents=True, exist_ok=True)
+
     # ----------------------------------------------------------------------
     # Check Methods
     # ----------------------------------------------------------------------
@@ -192,11 +198,15 @@ class KroltinSettings:
 
     def import_golden_image(self, src_path):
         """Import a golden image VM from the given path into the golden_images directory."""
+        self.logger.debug(f"Importing golden image from: {src_path}")
         if path.isabs(src_path):
             src = pathlib.Path(src_path)
         else:
             src = pathlib.Path(getcwd()) / src_path
+
+        self.logger.debug(f"Resolved source path: {src}")
         src_name = src.name
+        self.logger.debug(f"Source name: {src_name}")
         dest = self.golden_images_dir / src_name
 
         if not src.exists():
@@ -212,7 +222,7 @@ class KroltinSettings:
                 self.logger.warning("Importing directories not supported.")
             else:
                 copy2(str(src), str(dest))
-            print(f"Golden image '{src_name}' imported to golden_images.")
+            self.logger.info(f"Golden image '{src_name}' imported to golden_images.")
             return True
         except Exception as e:
             self.logger.error(f"Failed to import golden image: {e}")

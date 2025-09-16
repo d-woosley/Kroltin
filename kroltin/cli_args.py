@@ -237,7 +237,7 @@ def load_args():
         "--scripts",
         dest="scripts",
         nargs='*',
-        help="Optional list of scripts to pass to the packer build (space separated)",
+        help="Optional list of scripts to run (script name from scripts dir or path; space separated)",
         default=[]
     )
     golden_parser.add_argument(
@@ -264,14 +264,14 @@ def load_args():
     configure_parser.add_argument(
         "--packer-template",
         dest="packer_template",
-        help="Path to the packer template file (HCL).",
+        help="Packer template name (from installed templates) or path to a template file.",
         type=str,
         required=True
     )
     configure_parser.add_argument(
         "--vm-file",
         dest="vm_file",
-        help="Path to the VM file to import",
+        help="Golden image name (from installed images) or path to a VM file to configure.",
         type=str,
         required=True
     )
@@ -300,7 +300,7 @@ def load_args():
         "--scripts",
         dest="scripts",
         nargs='*',
-        help="Optional list of scripts to run inside the VM (space separated)",
+        help="Optional list of scripts to run (script name from installed scripts or path; space separated)",
         default=[]
     )
     configure_parser.add_argument(

@@ -30,7 +30,8 @@ kroltin = [
     "packer_templates/*.json",
     "scripts/*.sh",
     "scripts/*.ps1",
-    "preseed-files/*.cfg"
+    "preseed-files/*.cfg",
+    "golden_images/*"
 ]
 
 [build-system]
