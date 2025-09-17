@@ -19,12 +19,9 @@ class KroltinSettings:
         self.scripts_dir = resources.files('kroltin') / 'scripts'
         self.packer_dir = resources.files('kroltin') / 'packer_templates'
         self.golden_images_dir = resources.files('kroltin') / 'golden_images'
+        self.preseed_dir = resources.files('kroltin') / 'preseed-files'
 
-        # Ensure golden_images directory exists
-        golden_images_path = pathlib.Path(self.golden_images_dir)
-        if not golden_images_path.exists():
-            self.logger.debug(f"Creating golden_images directory at: {golden_images_path}")
-            golden_images_path.mkdir(parents=True, exist_ok=True)
+        self._ensure_directory(dir=self.golden_images_dir)
 
     # ----------------------------------------------------------------------
     # Check Methods
@@ -46,43 +43,33 @@ class KroltinSettings:
 
     def list_scripts(self) -> None:
         """Print a list of all script files in the scripts directory."""
-        self._get_scripts()
-        self.logger.info(f"Scripts: {', '.join(self.scripts_list)}")
+        scripts_list = self._get_files(self.scripts_dir, exts=['.sh'])
+        self.logger.info(f"Scripts: {', '.join(scripts_list)}")
 
     def list_packer_templates(self) -> None:
         """Print a list of all packer templates in the packer_templates directory."""
-        self._get_packer_templates()
-        self.logger.info(f"Templates: {', '.join(self.packer_templates)}")
+        packer_templates = self._get_files(self.packer_dir, exts=['.hcl', '.json'])
+        self.logger.info(f"Templates: {', '.join(packer_templates)}")
 
     def list_golden_images(self) -> None:
         """Print a list of all builds in the golden_images directory."""
-        builds = [f for f in listdir(self.golden_images_dir) if not f.startswith('.')]
-        if builds:
-            self.logger.info(f"Golden Images: {', '.join(builds)}")
+        golden_images = self._get_files(self.golden_images_dir, exclude_dotfiles=True)
+        if golden_images:
+            self.logger.info(f"Golden Images: {', '.join(golden_images)}")
         else:
             self.logger.info("No builds found in golden_images directory.")
+
+    def list_preseed_files(self) -> None:
+        """Print a list of all preseed files in the preseed-files directory."""
+        preseed_files = self._get_files(self.preseed_dir, exts=['.cfg', '.seed'])
+        self.logger.info(f"Preseed Files: {', '.join(preseed_files)}")
 
     def list_all(self):
         """Print all packer templates, script files, and golden images."""
         self.list_packer_templates()
         self.list_scripts()
         self.list_golden_images()
-
-    def _get_scripts(self):
-        """Populate self.scripts_list with all .sh files in scripts directory."""
-        self.scripts_list = []
-        for file in listdir(self.scripts_dir):
-            if file.endswith('.sh'):
-                self.scripts_list.append(file)
-        return True
-
-    def _get_packer_templates(self):
-        """Populate self.packer_templates with all .hcl and .json files in packer_templates directory."""
-        self.packer_templates = []
-        for file in listdir(self.packer_dir):
-            if file.endswith('.hcl') or file.endswith('.json'):
-                self.packer_templates.append(file)
-        return True
+        self.list_preseed_files()
 
     # ----------------------------------------------------------------------
     # Update Methods
@@ -90,72 +77,37 @@ class KroltinSettings:
 
     def add_script(self, script_path):
         """Add a script file to the scripts directory."""
-        if not path.isfile(script_path):
-            self.logger.error(f"Script file not found: {script_path}")
-            return False
-        if not script_path.endswith('.sh'):
-            self.logger.error(f"Script file must have a .sh extension: {script_path}")
-            return False
-        dest = path.join(self.scripts_dir, path.basename(script_path))
-        try:
-            copy2(script_path, dest)
-            return True
-        except Exception as e:
-            self.logger.error(f"Failed to add script: {e}")
-            return False
+        result = self._add_file(script_path, self.scripts_dir, ['.sh'], 'Script')
+        return bool(result)
 
     def remove_script(self, script_name):
         """Remove a script file from the scripts directory."""
-        script_path = path.join(self.scripts_dir, script_name)
-        if not path.isfile(script_path):
-            self.logger.error(f"Script file not found: {script_path}")
-            return False
-        try:
-            remove(script_path)
-            return True
-        except Exception as e:
-            self.logger.error(f"Failed to remove script: {e}")
-            return False
+        return self._remove_file(script_name, self.scripts_dir, 'Script')
 
     def add_packer_template(self, packer_template_path):
         """Add a packer template to the packer_templates directory."""
-        if not path.isfile(packer_template_path):
-            self.logger.error(f"Packer template not found: {packer_template_path}")
-            return False
-        if not (packer_template_path.endswith('.hcl') or packer_template_path.endswith('.json')):
-            self.logger.error(f"Packer template must have a .hcl or .json extension: {packer_template_path}")
-            return False
-        dest = path.join(self.packer_dir, path.basename(packer_template_path))
-        try:
-            copy2(packer_template_path, dest)
-        except Exception as e:
-            self.logger.error(f"Failed to add packer template: {e}")
+        dest = self._add_file(packer_template_path, self.packer_dir, ['.hcl', '.json'], 'Packer template')
+        if not dest:
             return False
         
         # Run packer init and validate after adding
-        packer = Packer()
-        if packer.init_template(dest) and packer.validate_template(dest):
-            return True
-        else:
-            self.logger.debug(f"Packer Init: {packer.init_template(dest)}")
-            self.logger.debug(f"Packer Validate: {packer.validate_template(dest)}")
-
-            self.remove_packer_template(dest)
-            self.logger.debug("Packer template failed init/validate after adding. Template removed.")
+        if not self._check_packer_template(dest):
             return False
+        
+        return True
 
     def remove_packer_template(self, packer_template_name):
         """Remove a packer template from the packer_templates directory."""
-        packer_template_path = path.join(self.packer_dir, packer_template_name)
-        if not path.isfile(packer_template_path):
-            self.logger.error(f"Packer template not found: {packer_template_path}")
-            return False
-        try:
-            remove(packer_template_path)
-            return True
-        except Exception as e:
-            self.logger.error(f"Failed to remove packer template: {e}")
-            return False
+        return self._remove_file(packer_template_name, self.packer_dir, 'Packer template')
+        
+    def add_preseed_file(self, preseed_file_path):
+        """Add a preseed file to the preseed-files directory."""
+        result = self._add_file(preseed_file_path, self.preseed_dir, ['.cfg', '.seed'], 'Preseed')
+        return bool(result)
+    
+    def remove_preseed_file(self, preseed_file_name):
+        """Remove a preseed file from the preseed-files directory."""
+        return self._remove_file(preseed_file_name, self.preseed_dir, 'Preseed')
         
     def remove_golden_image(self, image_name):
         """Remove a golden image from the golden_images directory after confirmation."""
@@ -245,3 +197,63 @@ class KroltinSettings:
                 return False
             self.logger.error("Response not understood. Please enter 'y' or 'n'")
 
+    def _ensure_directory(self, dir):
+        """Ensure a directory exists, creating it if necessary."""
+        dir_path = pathlib.Path(dir)
+        if not dir_path.exists():
+            self.logger.debug(f"Creating directory at: {dir_path}")
+            dir_path.mkdir(parents=True, exist_ok=True)
+
+    def _get_files(self, directory, exts=None, exclude_dotfiles=False):
+        """Helper to get files from a directory, optionally filtering by extensions and dotfiles."""
+        files = []
+        for file in listdir(directory):
+            if exclude_dotfiles and file.startswith('.'):
+                continue
+            if exts:
+                if any(file.endswith(ext) for ext in exts):
+                    files.append(file)
+            else:
+                files.append(file)
+        return files
+
+    def _add_file(self, src_path, dest_dir, valid_exts, type_desc):
+        """Helper to add a file to a directory with extension/type checks."""
+        if not path.isfile(src_path):
+            self.logger.error(f"{type_desc} file not found: {src_path}")
+            return False
+        if not any(src_path.endswith(ext) for ext in valid_exts):
+            self.logger.error(f"{type_desc} file must have one of {valid_exts} extensions: {src_path}")
+            return False
+        dest = path.join(dest_dir, path.basename(src_path))
+        try:
+            copy2(src_path, dest)
+            return dest
+        except Exception as e:
+            self.logger.error(f"Failed to add {type_desc} file: {e}")
+            return False
+
+    def _remove_file(self, file_name, dir_path, type_desc):
+        """Helper to remove a file from a directory."""
+        file_path = path.join(dir_path, file_name)
+        if not path.isfile(file_path):
+            self.logger.error(f"{type_desc} file not found: {file_path}")
+            return False
+        try:
+            remove(file_path)
+            return True
+        except Exception as e:
+            self.logger.error(f"Failed to remove {type_desc} file: {e}")
+            return False
+        
+    def _check_packer_template(self, template_path):
+        """Check if a packer template is valid by running packer init and validate."""
+        packer = Packer()
+        if packer.init_template(template_path) and packer.validate_template(template_path):
+            return True
+        else:
+            self.logger.debug(f"Packer Init: {packer.init_template(template_path)}")
+            self.logger.debug(f"Packer Validate: {packer.validate_template(template_path)}")
+            self.remove_packer_template(path.basename(template_path))
+            self.logger.debug("Packer template failed init/validate after adding. Template removed.")
+            return False

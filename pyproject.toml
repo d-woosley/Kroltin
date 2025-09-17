@@ -31,6 +31,7 @@ kroltin = [
     "scripts/*.sh",
     "scripts/*.ps1",
     "preseed-files/*.cfg",
+    "preseed-files/*.seed",
     "golden_images/*"
 ]
 

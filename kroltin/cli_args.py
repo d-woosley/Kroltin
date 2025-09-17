@@ -1,7 +1,7 @@
 import time
 import os
 from getpass import getpass
-from argparse import ArgumentParser, ArgumentError
+from argparse import ArgumentParser
 
 from kroltin.settings import KroltinSettings
 
@@ -81,6 +81,13 @@ def load_args():
         action="store_true",
         default=False
     )
+    listing_group.add_argument(
+        "-ls-p", "--list-preseed-files",
+        dest="list_preseed_files",
+        help="List available preseed files in the preseed-files directory",
+        action="store_true",
+        default=False
+    )
 
     # Adding group
     adding_group = settings_parser.add_argument_group('Adding', 'Add scripts and packer templates')
@@ -97,6 +104,14 @@ def load_args():
         dest="add_packer_template",
         metavar="<PACKER_TEMPLATE_PATH>",
         help="Add a packer template to the available packer templates",
+        type=str,
+        default=None
+    )
+    adding_group.add_argument(
+        "-ap", "--add-preseed-file",
+        dest="add_preseed_file",
+        metavar="<PRESEED_FILE_PATH>",
+        help="Add a preseed file to the available preseed files",
         type=str,
         default=None
     )
@@ -124,6 +139,14 @@ def load_args():
         dest="remove_golden_image",
         metavar="<GOLDEN_IMAGE_NAME>",
         help="Remove a golden image from the golden_images directory (irreversible)",
+        type=str,
+        default=None
+    )
+    removing_group.add_argument(
+        "-rm-p", "--rm-preseed-file",
+        dest="remove_preseed_file",
+        metavar="<PRESEED_FILE_NAME>",
+        help="Remove a preseed file from the available preseed files",
         type=str,
         default=None
     )
@@ -178,46 +201,46 @@ def load_args():
     )
     golden_parser.add_argument(
         "--iso",
-        dest="iso_urls",
+        dest="isos",
         required=True,
         nargs='+',
         help="One or more paths or URLs to ISO files to use for the build (pass multiple separated by space)"
     )
     golden_parser.add_argument(
-        "--vmname",
-        dest="vmname",
-        help="Packer 'vmname' variable (default: kroltin-$DATE)",
+        "--vm-name",
+        dest="vm_name",
+        help="Virtual machine name (Default: kroltin-$DATE)",
         type=str,
         default=time.strftime('kroltin-%Y%m%d_%H%M%S')
     )
     golden_parser.add_argument(
         "--cpus",
         dest="cpus",
-        help="Number of CPUs for the VM",
+        help="Number of CPUs for the VM (default: 2)",
         type=int,
         default=2
     )
     golden_parser.add_argument(
         "--memory",
         dest="memory",
-        help="Memory (MB) for the VM",
+        help="Memory (MB) for the VM (default: 4096)",
         type=int,
-        default=2048
+        default=4096
     )
     golden_parser.add_argument(
         "--disk-size",
         "-ds",
         dest="disk_size",
-        help="Disk size (MB) for the VM",
+        help="Disk size (MB) for the VM (default: 81920)",
         type=int,
         default=81920
     )
     golden_parser.add_argument(
         "--ssh-username",
         dest="ssh_username",
-        help="SSH username for the VM (required)",
+        help="SSH username for the VM (default: kroltin)",
         type=str,
-        required=True
+        default="kroltin"
     )
     golden_parser.add_argument(
         "--ssh-password",
@@ -276,18 +299,18 @@ def load_args():
         required=True
     )
     configure_parser.add_argument(
-        "--vmname",
-        dest="vmname",
-        help="Packer 'vmname' variable (optional)",
+        "--vm-name",
+        dest="vm_name",
+        help="Virtual machine name (Default: kroltin-$DATE)",
         type=str,
         default=time.strftime('kroltin-%Y%m%d_%H%M%S')
     )
     configure_parser.add_argument(
         "--ssh-username",
         dest="ssh_username",
-        help="SSH username for the VM (required)",
+        help="SSH username for the VM (Default: kroltin)",
         type=str,
-        required=True
+        default="kroltin"
     )
     configure_parser.add_argument(
         "--ssh-password",

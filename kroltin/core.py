@@ -22,6 +22,8 @@ class Kroltin:
                 settings.list_packer_templates()
             elif self.args.list_golden_images:
                 settings.list_golden_images()
+            elif self.args.list_preseed_files:
+                settings.list_preseed_files()
             elif self.args.import_golden_image:
                 settings.import_golden_image(self.args.import_golden_image)
             elif self.args.export_golden_image:
@@ -58,13 +60,27 @@ class Kroltin:
                     settings.list_packer_templates()
                 else:
                     self.logger.error("Failed to remove packer template.")
+            elif self.args.add_preseed_file:
+                self.logger.info(f"Adding preseed file: {self.args.add_preseed_file}")
+                if settings.add_preseed_file(self.args.add_preseed_file):
+                    self.logger.info("Preseed file added successfully.")
+                    settings.list_preseed_files()
+                else:
+                    self.logger.error("Failed to add preseed file.")
+            elif self.args.remove_preseed_file:
+                self.logger.info(f"Removing preseed file: {self.args.remove_preseed_file}")
+                if settings.remove_preseed_file(self.args.remove_preseed_file):
+                    self.logger.info("Preseed file removed successfully.")
+                    settings.list_preseed_files()
+                else:
+                    self.logger.error("Failed to remove preseed file.")
         elif self.args.command == 'golden':
             result = self.packer.golden(
                 packer_template=self.args.packer_template,
-                vmname=self.args.vmname,
+                vm_name=self.args.vm_name,
                 vm_type=self.args.vm_type,
-                iso_urls=self.args.iso_urls,
-                cpus=self.args.cups,
+                isos=self.args.isos,
+                cpus=self.args.cpus,
                 memory=self.args.memory,
                 disk_size=self.args.disk_size,
                 ssh_username=self.args.ssh_username,
@@ -74,10 +90,11 @@ class Kroltin:
                 preseed_file=self.args.preseed_file,
             )
             self.logger.info(f"Packer golden build successful: {result}")
+            self.packer.remove_filled_preseed()
         elif self.args.command == 'configure':
             result = self.packer.configure(
                 packer_template=self.args.packer_template,
-                vmname=self.args.vmname,
+                vm_name=self.args.vm_name,
                 vm_type=self.args.vm_type,
                 vm_file=self.args.vm_file,
                 ssh_username=self.args.ssh_username,

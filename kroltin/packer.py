@@ -1,7 +1,9 @@
 from kroltin.threaded_cmd import run_command_stream
 import logging
-from os import path, listdir
+from os import path
 import importlib.resources as resources
+import pathlib
+import time
 
 
 class Packer:
@@ -13,6 +15,13 @@ class Packer:
         methods.
         """
         self.logger = logging.getLogger(__name__)
+        self.timestamp = time.strftime('%Y%m%d_%H%M%S')
+
+        # Directories within the installed package
+        self.scripts_dir = str(resources.files('kroltin') / 'scripts')
+        self.golden_images_dir = str(resources.files('kroltin') / 'golden_images')
+        self.http_directory = str(resources.files('kroltin') / 'preseed-files')
+        self.preseed_dir = str(resources.files('kroltin') / 'preseed-files')
 
     # ----------------------------------------------------------------------
     # VM Build Methods
@@ -21,9 +30,9 @@ class Packer:
     def golden(
         self,
         packer_template,
-        vmname=None,
+        vm_name=None,
         vm_type=None,
-        iso_urls=None,
+        isos=None,
         cpus=None,
         memory=None,
         disk_size=None,
@@ -32,25 +41,31 @@ class Packer:
         iso_checksum=None,
         scripts=None,
         preseed_file=None,
-    ):
+    ) -> bool:
         """Build the VM image (golden image) using HashiCorp Packer CLI.
 
         This maps the Packer variables expected by an ISO-based template.
         """
         self.logger.debug(
-            "Starting golden build with ISOs: %s, vmname: %s, vm_type: %s, cpus: %s, memory: %s, disk_size: %s, build_script: %s, export_path: %s",
-            iso_urls,
-            vmname,
-            vm_type,
-            cpus,
-            memory,
-            disk_size,
-            preseed_file,
-            self._golden_image_path(),
+            "Starting golden build with ISOs: %s, vm_name: %s, vm_type: %s, cpus: %s, "
+            "memory: %s, disk_size: %s, ssh_username %s, build_script: %s, "
+            "iso_checksum: %s, preseed_file: %s",
+            str(isos), vm_name, vm_type, str(cpus), str(memory), str(disk_size),
+            ssh_username, str(scripts), iso_checksum, preseed_file
         )
-        resolved_scripts = self._resolve_scripts(scripts)
+
+        filled_preseed_path = self._fill_pressed(
+            preseed_file=self._resolve_file_path(
+                preseed_file,
+                self.preseed_dir
+            ),
+            ssh_username=ssh_username,
+            ssh_password=ssh_password,
+            hostname=vm_name
+        )
+
         packer_varables = [
-            f"name={vmname}",
+            f"name={vm_name}",
             f"vm_type=[\"{self._map_sources(vm_type, build='golden')}\"]",
             f"cpus={cpus}",
             f"memory={memory}",
@@ -58,11 +73,13 @@ class Packer:
             f"ssh_username={ssh_username}",
             f"ssh_password={ssh_password}",
             f"iso_checksum={iso_checksum}",
-            f"preseed_file={preseed_file}",
-            f"iso_urls=[\"{self._quote_list(iso_urls)}\"]",
-            f"scripts=[\"{self._quote_list(resolved_scripts)}\"]",
-            f"export_path={self._golden_image_path()}"
+            f"preseed_file={filled_preseed_path}",
+            f"http_directory={self.http_directory}",
+            f"isos=[{self._quote_list(isos)}]",
+            f"scripts=[{self._quote_list(self._resolve_scripts(scripts))}]",
+            f"export_path={self._get_export_path(vm_name)}"
         ]
+
         resolved_template = self._resolve_packer_template(packer_template)
         cmd = self._build_packer_cmd(packer_varables, resolved_template)
         return self._run_packer(cmd=cmd)
@@ -70,14 +87,14 @@ class Packer:
     def configure(
         self,
         packer_template,
-        vmname=None,
+        vm_name=None,
         vm_type=None,
         vm_file=None,
         ssh_username=None,
         ssh_password=None,
         scripts=None,
         export_path=None,
-        ):
+        ) -> bool:
         """Configure an existing VM golden image using Packer.
 
         Expected variables in the template:
@@ -85,26 +102,21 @@ class Packer:
           - name, ssh_username, ssh_password, scripts, export_path
         """
         self.logger.debug(
-            "Starting VM configure: %s, vmname: %s, vm_type: %s, scripts: %s, export_path: %s",
-            vm_file,
-            vmname,
-            vm_type,
-            scripts,
-            export_path,
+            "Starting VM configure: %s, vm_name: %s, vm_type: %s, scripts: %s, "
+            "export_path: %s",
+            vm_file, vm_name, vm_type, str(scripts), export_path
         )
 
-        vm_file_path = self._resolve_vm_file_path(vm_file)
-        resolved_scripts = self._resolve_scripts(scripts)
-
         packer_varables = [
-            f"name={vmname}",
-            f"vm_file={vm_file_path}",
+            f"name={vm_name}",
+            f"vm_file={self._resolve_file_path(vm_file, self.golden_images_dir)}",
             f"vm_type=[\"{self._map_sources(vm_type, build='configure')}\"]",
             f"ssh_username={ssh_username}",
             f"ssh_password={ssh_password}",
-            f"scripts=[{self._quote_list(resolved_scripts)}]",
+            f"scripts=[{self._quote_list(self._resolve_scripts(scripts))}]",
             f"export_path={export_path}"
         ]
+        
         resolved_template = self._resolve_packer_template(packer_template)
         cmd = self._build_packer_cmd(packer_varables, resolved_template)
         return self._run_packer(cmd=cmd)
@@ -162,83 +174,70 @@ class Packer:
 
         return f"source.{mapping.get(type.lower(), type)}.vm"
     
-    def _golden_image_path(self) -> str:
-        """Return the export path for the built VM."""
-        golden_images_path = resources.files(__package__).parent / 'golden_images'
-        golden_images_path.mkdir(exist_ok=True)
-        return str(golden_images_path)
+    def _get_export_path(self, vm_name: str) -> str:
+        return str(resources.files('kroltin') / 'golden_images' / vm_name)
 
-    def _resolve_vm_file_path(self, vm_file):
-        """Return the absolute path to the VM file, checking golden images first, then user path, else warn."""
-        if not vm_file:
-            self.logger.warning("No vm_file provided to configure().")
-            return vm_file
-        golden_path = self._find_golden_image(vm_file)
-        if golden_path:
-            return golden_path
-        user_path = self._find_user_vm_file(vm_file)
+    def _resolve_file_path(self, file_name: str, kroltin_dir: str) -> str:
+        """Return the absolute path, checking kroltin directoires first, then user path. Transfer to kroltin_dir if needed."""
+        kroltin_path = self._resolve_file(file_name, kroltin_dir)
+        if kroltin_path:
+            return kroltin_path
+        
+        user_path = self._find_user_file(file_name)
         if user_path:
             return user_path
-        self.logger.warning(f"VM file '{vm_file}' not found in golden_images or at user path.")
-        return vm_file
+        
+        self.logger.warning(f"File '{file_name}' not found in kroltin directories or at user path.")
+        return False
 
-    def _find_golden_image(self, vm_file):
-        """Return the path to the golden image if it exists, else None."""
-        golden_images_dir = str(resources.files('kroltin') / 'golden_images')
-        return self._resolve_file(vm_file, golden_images_dir)
-    
-    def _resolve_file(self, filename, search_dir):
-        """Return the absolute path to filename in search_dir, else check user path, else None."""
-        file_in_dir = path.join(search_dir, path.basename(filename))
+    def _resolve_file(self, file_name: str, search_dir: str) -> str:
+        """Return the absolute path to file name in search_dir, else check user path, else None."""
+        file_in_dir = path.join(search_dir, path.basename(file_name))
         if path.isfile(file_in_dir):
             return file_in_dir
-        elif path.isfile(filename):
-            return path.abspath(filename)
+        elif path.isfile(file_name):
+            return path.abspath(file_name)
         return None
 
-    def _find_user_vm_file(self, vm_file):
+    def _find_user_file(self, file_name: str) -> str:
         """Return the absolute path to the user-supplied VM file if it exists, else None."""
-        import pathlib
-        user_path = pathlib.Path(vm_file)
+        user_path = pathlib.Path(file_name)
         if user_path.exists():
             return str(user_path.resolve())
         return None
 
-    def _resolve_scripts(self, scripts):
+    def _resolve_scripts(self, scripts: list) -> list:
         """Return a list of absolute paths for scripts, checking scripts dir first, then user path."""
-        if not scripts:
-            return []
-        scripts_dir = str(resources.files('kroltin') / 'scripts')
         resolved = []
         for script in scripts:
-            script_path = self._resolve_file(script, scripts_dir)
+            script_path = self._resolve_file(script, self.scripts_dir)
             if script_path:
                 resolved.append(script_path)
             else:
                 self.logger.warning(f"Script '{script}' not found in scripts dir or at user path.")
-                resolved.append(script)  # Pass as-is, but warn
+                return False
         return resolved
 
-    def _resolve_packer_template(self, template):
+    def _resolve_packer_template(self, template_name: str) -> str:
         """Return the absolute path to the packer template, checking installed dir first, then user path."""
         templates_dir = str(resources.files('kroltin') / 'packer_templates')
-        resolved = self._resolve_file(template, templates_dir)
+        resolved = self._resolve_file(template_name, templates_dir)
         if resolved:
             return resolved
-        self.logger.error(f"Packer template '{template}' not found in packer_templates dir or at user path.")
-        raise FileNotFoundError(f"Packer template '{template}' not found in packer_templates dir or at user path.")
+        self.logger.error(f"Packer template '{template_name}' not found in packer_templates dir or at user path.")
+        raise FileNotFoundError(f"Packer template '{template_name}' not found in packer_templates dir or at user path.")
 
     # ----------------------------------------------------------------------
     # Packer Template Management
     # ----------------------------------------------------------------------
 
-    def init_template(self, packer_template):
+    def init_template(self, packer_template: str) -> bool:
         """Run 'packer init' on the given Packer template."""
         self._check_file_exists(packer_template)
         cmd = self._build_packer_cmd([], packer_template, base_cmd=["packer", "init"])
         return self._run_packer(cmd)
 
-    def validate_template(self, packer_template):
+    def validate_template(self, packer_template: str) -> bool:
         """Run 'packer validate' on the given Packer template, passing dummy/default variables."""
         self._check_file_exists(packer_template)
 
@@ -265,7 +264,7 @@ class Packer:
             "ssh_password=dummypass",
             "iso_checksum=1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
             "preseed_file=dummy_preseed.cfg",
-            "iso_urls=[\"dummy.iso\"]",
+            "isos=[\"dummy.iso\"]",
             f'scripts=["{test_script_path}"]',
             "export_path=dummy_export_path"
         ]
@@ -277,3 +276,44 @@ class Packer:
             cmd = self._build_packer_cmd(golden_vars, packer_template, base_cmd=["packer", "validate"])
             return self._run_packer(cmd)
         return True
+    
+    # ----------------------------------------------------------------------
+    # Preseed File Handling
+    # ----------------------------------------------------------------------
+
+    def _fill_pressed(self,
+            preseed_file: str,
+            ssh_username: str,
+            ssh_password: str,
+            hostname: str
+        ) -> str:
+        """Fill in the preseed file with the provided SSH username and password."""
+        self.filled_preseed_path = path.join(
+            self.preseed_dir, 
+            f"filled_{self.timestamp}_{path.basename(preseed_file)}"
+        )
+        
+        try:
+            with open(preseed_file, 'r') as infile, open(self.filled_preseed_path, 'w') as outfile:
+                for line in infile:
+                    if ssh_username:
+                        line = line.replace('{{USERNAME}}', ssh_username)
+                    if ssh_password:
+                        line = line.replace('{{PASSWORD}}', ssh_password)
+                    if hostname:
+                        line = line.replace('{{HOSTNAME}}', hostname)
+                    outfile.write(line)
+            self.logger.info(f"Filled preseed file created at: {self.filled_preseed_path}")
+            return self.filled_preseed_path
+        except Exception as e:
+            self.logger.error(f"Error filling preseed file: {e}")
+            raise e
+        
+    def remove_filled_preseed(self):
+        """Remove the filled preseed file if it exists."""
+        if hasattr(self, 'filled_preseed_path') and path.exists(self.filled_preseed_path):
+            try:
+                path.remove(self.filled_preseed_path)
+                self.logger.info(f"Removed filled preseed file: {self.filled_preseed_path}")
+            except Exception as e:
+                self.logger.error(f"Error removing filled preseed file: {e}")
