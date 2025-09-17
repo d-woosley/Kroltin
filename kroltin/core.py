@@ -2,6 +2,8 @@ from kroltin.cli_args import load_args
 from kroltin.logger import setup_logging
 from kroltin.packer import Packer
 from kroltin.settings import KroltinSettings
+from kroltin.run import register_cleanup
+
 import logging
 
 
@@ -10,6 +12,10 @@ class Kroltin:
         self.args = load_args()
         self.logger = self._setup_logger()
         self.packer = Packer()
+
+        # Register cleanup to always remove filled preseed on exit or error
+        if register_cleanup:
+            register_cleanup(self.packer.remove_filled_preseed)
 
     def cli(self):
         if self.args.command == 'settings':
