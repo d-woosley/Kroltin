@@ -1,17 +1,18 @@
 locals { version = formatdate("YYYY.MM.DD", timestamp()) }
 
-variable "name"         { type = string }
-variable "vm_type"      { type = list(string) }
-variable "cpus"         { type = number }
-variable "memory"       { type = number }
-variable "disk_size"    { type = number }
-variable "ssh_username" { type = string }
-variable "ssh_password" { type = string }
-variable "iso_urls"     { type = list(string) }
-variable "iso_checksum" { type = string }
-variable "scripts"      { type = list(string) }
-variable "preseed_file" { type = string }
-variable "export_path"  { type = string }
+variable "name"           { type = string }
+variable "vm_type"        { type = list(string) }
+variable "cpus"           { type = number }
+variable "memory"         { type = number }
+variable "disk_size"      { type = number }
+variable "ssh_username"   { type = string }
+variable "ssh_password"   { type = string }
+variable "isos"           { type = list(string) }
+variable "iso_checksum"   { type = string }
+variable "scripts"        { type = list(string) }
+variable "preseed_file"   { type = string }
+variable "http_directory" { type = string}
+variable "export_path"    { type = string }
 
 source "virtualbox-iso" "vm" {
   boot_command = [
@@ -29,11 +30,11 @@ source "virtualbox-iso" "vm" {
   cpus                 = var.cpus
   memory               = var.memory
   disk_size            = var.disk_size
-  iso_urls             = var.iso_urls
+  iso_urls             = var.isos
   iso_checksum         = var.iso_checksum
   guest_os_type        = "Debian_64"
   headless             = true
-  http_directory       = "preseed-files"
+  http_directory       = var.http_directory
   ssh_username         = var.ssh_username
   ssh_password         = var.ssh_password
   ssh_port             = "22"
