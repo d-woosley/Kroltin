@@ -7,6 +7,7 @@ variable "ssh_username" { type = string }
 variable "ssh_password" { type = string }
 variable "scripts"      { type = list(string) }
 variable "export_path"  { type = string }
+variable "build_path"  { type = string }
 
 source "virtualbox-ovf" "vm" {
   source_path = var.vm_file
@@ -17,8 +18,8 @@ source "virtualbox-ovf" "vm" {
   headless    = true
   ssh_timeout = "10m"
   vboxmanage           = [["modifyvm","{{ .Name }}","--vram","64"]]
-  keep_registered      = false
-  output_directory     = "${var.export_path}"
+  keep_registered      = true
+  output_directory     = "${var.build_path}"
   shutdown_command     = "echo '${var.ssh_password}' | sudo -S shutdown -P now"
 }
 
@@ -36,7 +37,6 @@ build {
     post-processor "shell-local" {
       inline = [
         "VBoxManage export '${var.name}' --output '${var.export_path}/${var.name}-${local.version}.ova'",
-        "sha256sum '${var.export_path}/${var.name}-${local.version}.ova' > '${var.export_path}/${var.name}-${local.version}.ova.sha256'",
         "VBoxManage unregistervm '${var.name}' --delete || true"
       ]
     }

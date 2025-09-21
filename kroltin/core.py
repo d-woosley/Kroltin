@@ -2,7 +2,6 @@ from kroltin.cli_args import load_args
 from kroltin.logger import setup_logging
 from kroltin.packer import Packer
 from kroltin.settings import KroltinSettings
-from kroltin.run import register_cleanup
 
 import logging
 
@@ -12,10 +11,6 @@ class Kroltin:
         self.args = load_args()
         self.logger = self._setup_logger()
         self.packer = Packer()
-
-        # Register cleanup to always remove filled preseed on exit or error
-        if register_cleanup:
-            register_cleanup(self.packer.remove_filled_preseed)
 
     def cli(self):
         if self.args.command == 'settings':
@@ -81,7 +76,7 @@ class Kroltin:
                 else:
                     self.logger.error("Failed to remove preseed file.")
         elif self.args.command == 'golden':
-            result = self.packer.golden(
+            if self.packer.golden(
                 packer_template=self.args.packer_template,
                 vm_name=self.args.vm_name,
                 vm_type=self.args.vm_type,
@@ -94,11 +89,10 @@ class Kroltin:
                 iso_checksum=self.args.iso_checksum,
                 scripts=self.args.scripts,
                 preseed_file=self.args.preseed_file,
-            )
-            self.logger.info(f"Packer golden build successful: {result}")
-            self.packer.remove_filled_preseed()
+            ):
+                self.logger.info(f"Golden Image build successful! SHA256: {self.packer.sha256_hash}")
         elif self.args.command == 'configure':
-            result = self.packer.configure(
+            if self.packer.configure(
                 packer_template=self.args.packer_template,
                 vm_name=self.args.vm_name,
                 vm_type=self.args.vm_type,
@@ -107,8 +101,8 @@ class Kroltin:
                 ssh_password=self.args.ssh_password,
                 scripts=self.args.scripts,
                 export_path=self.args.export_path,
-            )
-            self.logger.info(f"Packer configure successful: {result}")
+            ):
+                self.logger.info(f"VM configurion successful! SHA256: {self.packer.sha256_hash}")
         else:
             self.logger.info("Running Kroltin CLI")
 
