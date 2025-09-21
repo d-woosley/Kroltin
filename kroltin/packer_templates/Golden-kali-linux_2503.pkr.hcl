@@ -14,6 +14,7 @@ variable "preseed_file"   { type = string }
 variable "http_directory" { type = string}
 variable "export_path"    { type = string }
 variable "build_path"     { type = string }
+variable "headless"       { type = bool }
 
 source "virtualbox-iso" "vm" {
   boot_command = [
@@ -34,7 +35,7 @@ source "virtualbox-iso" "vm" {
   iso_urls             = var.isos
   iso_checksum         = var.iso_checksum
   guest_os_type        = "Debian_64"
-  headless             = true
+  headless             = var.headless
   http_directory       = var.http_directory
   ssh_username         = var.ssh_username
   ssh_password         = var.ssh_password

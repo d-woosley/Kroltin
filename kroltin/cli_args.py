@@ -270,6 +270,13 @@ def load_args():
         help="Custom preseed file to run during packer build",
         required=True
     )
+    golden_parser.add_argument(
+        "--no-headless",
+        dest="headless",
+        help="Run the configuration with a GUI (not in headless mode).",
+        action="store_false",
+        default=True
+    )
 
     # Configure subcommand: take an existing VM, run configuration scripts, export new VM
     configure_parser = subparsers.add_parser(
@@ -331,6 +338,13 @@ def load_args():
         dest="export_path",
         default=f"kroltin_configured_vm_{timestamp}",
         help="Optional export path for the configured VM (default: kroltin_configured_vm_TIMESTAMP)"
+    )
+    configure_parser.add_argument(
+        "--no-headless",
+        dest="no_headless",
+        help="Run the configuration with a GUI (not in headless mode).",
+        action="store_true",
+        default=False
     )
 
     # Get arg results
