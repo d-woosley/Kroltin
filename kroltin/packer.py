@@ -26,18 +26,19 @@ class Packer:
 
     def golden(
         self,
-        packer_template,
-        vm_name=None,
-        vm_type=None,
-        isos=None,
-        cpus=None,
-        memory=None,
-        disk_size=None,
-        ssh_username=None,
-        ssh_password=None,
-        iso_checksum=None,
-        scripts=None,
-        preseed_file=None,
+        packer_template: str,
+        vm_name: str,
+        vm_type: str,
+        isos: list,
+        cpus: int,
+        memory: int,
+        disk_size: int,
+        ssh_username: str,
+        ssh_password: str,
+        iso_checksum: str,
+        scripts: list,
+        preseed_file: str,
+        headless: bool = True,
     ) -> bool:
         """Build the VM image (golden image) using HashiCorp Packer CLI.
 
@@ -75,14 +76,15 @@ class Packer:
             f"isos=[{self._quote_list(isos)}]",
             f"scripts=[{self._quote_list(self._resolve_scripts(scripts))}]",
             f"export_path={self.golden_images_dir}",
-            f"build_path={self._build_path(vm_name)}"
+            f"build_path={self._build_path(vm_name)}",
+            f"headless={'true' if headless else 'false'}"
         ]
 
         resolved_template = self._resolve_packer_template(packer_template)
         cmd = self._build_packer_cmd(packer_varables, resolved_template)
         try:
             if self._run_packer(cmd):
-                self._get_build_hash(vm_name)
+                self._get_build_hash(vm_name, self._map_extension(vm_type))
                 self._remove_filled_preseed()
                 self._remove_build_path(vm_name)
                 return True
@@ -99,10 +101,11 @@ class Packer:
         vm_name: str,
         vm_type: str,
         vm_file: str,
-        ssh_username: str = None,
-        ssh_password: str = None,
+        ssh_username: str,
+        ssh_password: str,
         scripts: list = None,
         export_path: str = None,
+        headless: bool = True,
         ) -> bool:
         """Configure an existing VM golden image using Packer."""
         self.logger.debug(
@@ -119,7 +122,8 @@ class Packer:
             f"ssh_password={ssh_password}",
             f"scripts=[{self._quote_list(self._resolve_scripts(scripts))}]",
             f"export_path={export_path}",
-            f"build_path={self._build_path(vm_name)}"
+            f"build_path={self._build_path(vm_name)}",
+            f"headless={'true' if headless else 'false'}"
         ]
         
         resolved_template = self._resolve_packer_template(packer_template)
@@ -127,7 +131,7 @@ class Packer:
 
         try:
             if self._run_packer(cmd):
-                self._get_build_hash(vm_name)
+                self._get_build_hash(vm_name, self._map_extension(vm_type))
                 self._remove_build_path(vm_name)
                 return True
             return False
@@ -182,9 +186,19 @@ class Packer:
 
         return f"source.{mapping.get(type.lower(), type)}.vm"
     
-    def _get_build_hash(self, vm_name: str) -> str:
+    def _map_extension(self, vm_type: str) -> str:
+        mapping = {
+            "vmware": "vmx",
+            "virtualbox": "ova",
+            "hyperv": "vmcx",
+        }
+        if vm_type.lower() not in mapping:
+            raise ValueError(f"Unsupported type '{vm_type}' for VM file extension mapping")
+        return mapping.get(vm_type.lower(), vm_type)
+    
+    def _get_build_hash(self, vm_name: str, vm_file_extension: str) -> str:
         """Set the instance variables for MD5, SHA1, and SHA256 hashes from the .kroltin_build temporary directory"""
-        ova_path = path.join(self.temp_dir, f"{vm_name}.ova")
+        ova_path = path.join(self.temp_dir, vm_name, f"{vm_name}.{vm_file_extension}")
         self._check_file_exists(ova_path)
 
         self.md5_hash = self._compute_file_hash(ova_path, algorithm='md5')

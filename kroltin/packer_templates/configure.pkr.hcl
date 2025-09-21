@@ -8,6 +8,7 @@ variable "ssh_password" { type = string }
 variable "scripts"      { type = list(string) }
 variable "export_path"  { type = string }
 variable "build_path"  { type = string }
+variable "headless"    { type = bool }
 
 source "virtualbox-ovf" "vm" {
   source_path = var.vm_file
@@ -15,7 +16,7 @@ source "virtualbox-ovf" "vm" {
   communicator = "ssh"
   ssh_username = var.ssh_username
   ssh_password = var.ssh_password
-  headless    = true
+  headless    = var.headless
   ssh_timeout = "10m"
   vboxmanage           = [["modifyvm","{{ .Name }}","--vram","64"]]
   keep_registered      = true
