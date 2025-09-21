@@ -10,9 +10,10 @@ RESET = "\033[0m"
 class ScreenFormatter(logging.Formatter):
     def __init__(self, fmt, datefmt=None):
         super().__init__(fmt, datefmt)
+        self.positive_msgs = ["created", "exported", "removed", "successful"]
 
     def format(self, record):
-        if "created" in record.msg or "exported" in record.msg or "removed" in record.msg:
+        if any(msg in record.msg for msg in self.positive_msgs):
             symbol = f"  {GREEN}[+]{RESET}"
         elif record.levelno == logging.DEBUG:
             symbol = f"  {CYAN}[i]{RESET}"

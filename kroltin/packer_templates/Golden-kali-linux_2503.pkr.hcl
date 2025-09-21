@@ -13,6 +13,7 @@ variable "scripts"        { type = list(string) }
 variable "preseed_file"   { type = string }
 variable "http_directory" { type = string}
 variable "export_path"    { type = string }
+variable "build_path"     { type = string }
 
 source "virtualbox-iso" "vm" {
   boot_command = [
@@ -41,8 +42,8 @@ source "virtualbox-iso" "vm" {
   ssh_timeout          = "3600s"
   hard_drive_interface = "sata"
   vboxmanage           = [["modifyvm","{{ .Name }}","--vram","64"]]
-  keep_registered      = false
-  output_directory     = "${var.export_path}"
+  keep_registered      = true
+  output_directory     = "${var.build_path}"
   shutdown_command     = "echo '${var.ssh_password}' | sudo -S shutdown -P now"
 }
 
@@ -60,7 +61,6 @@ build {
     post-processor "shell-local" {
       inline = [
         "VBoxManage export '${var.name}' --output '${var.export_path}/${var.name}-${local.version}.ova'",
-        "sha256sum '${var.export_path}/${var.name}-${local.version}.ova' > '${var.export_path}/${var.name}-${local.version}.ova.sha256'",
         "VBoxManage unregistervm '${var.name}' --delete || true"
       ]
     }
