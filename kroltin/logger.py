@@ -1,4 +1,6 @@
 import logging
+import re
+
 
 # ANSI Colors
 RED = "\033[91m"
@@ -13,6 +15,9 @@ class ScreenFormatter(logging.Formatter):
         self.positive_msgs = ["created", "exported", "removed", "successful"]
 
     def format(self, record):
+        if "ssh_password" in record.msg:
+            record.msg = self._redact_password(record.msg)
+
         if any(msg in record.msg for msg in self.positive_msgs):
             symbol = f"  {GREEN}[+]{RESET}"
         elif record.levelno == logging.DEBUG:
@@ -25,6 +30,12 @@ class ScreenFormatter(logging.Formatter):
             symbol = "  [-]"
         original_msg = super().format(record)
         return f"{symbol} {original_msg}"
+    
+    @staticmethod
+    def _redact_password(msg: str) -> str:
+        """Redact SSH passwords from log messages."""
+        pattern = r"(-var\s+ssh_password=)(\S+)"
+        return re.sub(pattern, r"\1********", msg)
 
 class FileFormatter(logging.Formatter):
     def __init__(self, fmt, datefmt=None):

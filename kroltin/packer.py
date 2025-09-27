@@ -15,10 +15,20 @@ class Packer:
         self.timestamp = time.strftime('%Y%m%d_%H%M%S')
 
         # Directories within the installed package
-        self.scripts_dir = str(resources.files('kroltin') / 'scripts')
-        self.golden_images_dir = str(resources.files('kroltin') / 'golden_images')
-        self.http_directory = str(resources.files('kroltin') / 'preseed-files')
+        self.scripts_dir = str(resources.files('kroltin').joinpath('scripts'))
+        self.golden_images_dir = str(resources.files('kroltin').joinpath('golden_images'))
+        self.preseed_dir = str(resources.files('kroltin').joinpath('preseed-files'))
         self.temp_dir = tempfile.gettempdir()
+        self.http_directory = path.join(self.temp_dir, f"kroltin-preseed_{self.timestamp}")
+        if not path.exists(self.http_directory):
+            pathlib.Path(self.http_directory).mkdir(parents=True, exist_ok=True)
+
+        # Log resoved paths
+        self.logger.debug(f"scripts_dir:      {self.scripts_dir}")
+        self.logger.debug(f"golden_images_dir:{self.golden_images_dir}")
+        self.logger.debug(f"preseed_dir:      {self.preseed_dir}")
+        self.logger.debug(f"temp_dir:         {self.temp_dir}")
+        self.logger.debug(f"http_directory:   {self.http_directory}")
 
     # ----------------------------------------------------------------------
     # VM Build Methods
@@ -38,7 +48,10 @@ class Packer:
         iso_checksum: str,
         scripts: list,
         preseed_file: str,
-        headless: bool = True,
+        headless: bool,
+        guest_os_type: str,
+        tools_upload_flavor: str,
+        vmware_version: int,
     ) -> bool:
         """Build the VM image (golden image) using HashiCorp Packer CLI.
 
@@ -52,10 +65,15 @@ class Packer:
             ssh_username, str(scripts), iso_checksum, preseed_file
         )
 
+        resolved_template = self._resolve_packer_template(packer_template)
+        if not self.init_template(resolved_template):
+            self.logger.error(f"Packer init failed for template: {resolved_template}")
+            return False
+
         self._fill_pressed(
             preseed_file=self._resolve_file_path(
                 preseed_file,
-                self.http_directory
+                self.preseed_dir
             ),
             ssh_username=ssh_username,
             ssh_password=ssh_password,
@@ -75,18 +93,21 @@ class Packer:
             f"http_directory={self.http_directory}",
             f"isos=[{self._quote_list(isos)}]",
             f"scripts=[{self._quote_list(self._resolve_scripts(scripts))}]",
-            f"export_path={self.golden_images_dir}",
+            f"export_path={self._export_file_path(vm_name, vm_type)}",
             f"build_path={self._build_path(vm_name)}",
-            f"headless={'true' if headless else 'false'}"
+            f"headless={'true' if headless else 'false'}",
+            f"guest_os_type={guest_os_type}",
+            #f"tools_upload_flavor={tools_upload_flavor}",
+            f"vmware_version={vmware_version}",
+            f"source_vmx_path={self._source_vmx_path(vm_name)}"
         ]
 
-        resolved_template = self._resolve_packer_template(packer_template)
         cmd = self._build_packer_cmd(packer_varables, resolved_template)
         try:
             if self._run_packer(cmd):
                 self._get_build_hash(vm_name, self._map_extension(vm_type))
                 self._remove_filled_preseed()
-                self._remove_build_path(vm_name)
+                #self._remove_build_path(vm_name)  # TEMP FOR DEBUG
                 return True
             return False
         except Exception as e:
@@ -103,9 +124,12 @@ class Packer:
         vm_file: str,
         ssh_username: str,
         ssh_password: str,
-        scripts: list = None,
-        export_path: str = None,
-        headless: bool = True,
+        scripts: list,
+        export_path: str,
+        headless: bool,
+        guest_os_type: str,
+        tools_upload_flavor: str,
+        vmware_version: int,
         ) -> bool:
         """Configure an existing VM golden image using Packer."""
         self.logger.debug(
@@ -113,6 +137,11 @@ class Packer:
             "export_path: %s",
             vm_file, vm_name, vm_type, str(scripts), export_path
         )
+
+        resolved_template = self._resolve_packer_template(packer_template)
+        if not self.init_template(resolved_template):
+            self.logger.error(f"Packer init failed for template: {resolved_template}")
+            return False
 
         packer_varables = [
             f"name={vm_name}",
@@ -123,10 +152,13 @@ class Packer:
             f"scripts=[{self._quote_list(self._resolve_scripts(scripts))}]",
             f"export_path={export_path}",
             f"build_path={self._build_path(vm_name)}",
-            f"headless={'true' if headless else 'false'}"
+            f"headless={'true' if headless else 'false'}",
+            f"guest_os_type={guest_os_type}",
+            f"tools_upload_flavor={tools_upload_flavor}",
+            f"version={vmware_version}",
+            f"source_vmx_path={self._source_vmx_path(vm_name)}"
         ]
         
-        resolved_template = self._resolve_packer_template(packer_template)
         cmd = self._build_packer_cmd(packer_varables, resolved_template)
 
         try:
@@ -208,7 +240,8 @@ class Packer:
         self.logger.debug(f"Computed hashes for {ova_path} - MD5: {self.md5_hash}, SHA1: {self.sha1_hash}, SHA256: {self.sha256_hash}")
         return True
 
-    def _compute_file_hash(file_path, algorithm='sha256'):
+    @staticmethod
+    def _compute_file_hash(file_path, algorithm: str = 'sha256') -> str:
         """Compute the hash of a file using the specified algorithm."""
         hash_func = hashlib.new(algorithm)
         
@@ -231,8 +264,8 @@ class Packer:
 
     def _build_path(self, vm_name: str) -> str:
         """Return the build path for a given VM name in the system temp directory."""
-        self.logger.debug(f"Temporary build path for VM '{vm_name}': {self.temp_dir}/{vm_name}")
-        return f"{self.temp_dir}/{vm_name}"
+        self.logger.debug(f"Temporary build path for VM '{vm_name}': {path.join(self.temp_dir, vm_name)}")
+        return path.join(self.temp_dir, vm_name)
 
     def _resolve_file_path(self, file_name: str, kroltin_dir: str) -> str:
         """Return the absolute path, checking kroltin directoires first, then user path. Transfer to kroltin_dir if needed."""
@@ -283,6 +316,19 @@ class Packer:
             return resolved
         self.logger.error(f"Packer template '{template_name}' not found in packer_templates dir or at user path.")
         raise FileNotFoundError(f"Packer template '{template_name}' not found in packer_templates dir or at user path.")
+
+    def _export_file_path(self, vm_name: str, vm_type: str) -> str:
+        """Return the full export file path with timestamp for a VM."""
+        if vm_type == "vmware":
+            return path.join(self.golden_images_dir, vm_name, vm_name)
+        
+        return path.join(self.golden_images_dir, vm_name)
+    
+    def _source_vmx_path(self, vm_name: str) -> str:
+        """Return the full path to the VMX file for a given VM name."""
+        source_vmx_path = path.join(self._build_path(vm_name), f"{vm_name}.vmx")
+        self.logger.debug(f"Source VMX Path: {source_vmx_path}")
+        return source_vmx_path
 
     # ----------------------------------------------------------------------
     # Packer Template Management

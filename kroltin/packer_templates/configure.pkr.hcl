@@ -1,3 +1,19 @@
+packer {
+  required_plugins {
+    virtualbox = {
+      version = ">= 1.0.0"
+      source  = "github.com/hashicorp/virtualbox"
+    }
+    vmware = {
+      version = ">= 1.0.0"
+      source  = "github.com/hashicorp/vmware"
+    }
+    hyperv = {
+      version = ">= 1.0.0"
+      source  = "github.com/hashicorp/hyperv"
+    }
+  }
+}
 locals { version = formatdate("YYYY.MM.DD", timestamp()) }
 
 variable "name"         { type = string }
@@ -7,8 +23,8 @@ variable "ssh_username" { type = string }
 variable "ssh_password" { type = string }
 variable "scripts"      { type = list(string) }
 variable "export_path"  { type = string }
-variable "build_path"  { type = string }
-variable "headless"    { type = bool }
+variable "build_path"   { type = string }
+variable "headless"     { type = bool }
 
 source "virtualbox-ovf" "vm" {
   source_path = var.vm_file

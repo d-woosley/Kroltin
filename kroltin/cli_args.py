@@ -277,6 +277,29 @@ def load_args():
         action="store_false",
         default=True
     )
+    golden_parser.add_argument(
+        "--guest-os-type",
+        dest="guest_os_type",
+        help="Guest OS type for the VM (default: debian_64)",
+        type=str,
+        default="debian_64"
+    )
+    golden_parser.add_argument(
+        "--tools-upload-flavor",
+        dest="tools_upload_flavor",
+        help="VMware only: Which VMware Tools flavor to upload ('linux' or 'windows', default: linux)",
+        type=str,
+        choices=["linux", "windows"],
+        default="linux"
+    )
+
+    golden_parser.add_argument(
+        "--vmware-version",
+        dest="vmware_version",
+        help="VMware only: Virtual hardware version (default: 16)",
+        type=int,
+        default=16
+    )
 
     # Configure subcommand: take an existing VM, run configuration scripts, export new VM
     configure_parser = subparsers.add_parser(
@@ -345,6 +368,29 @@ def load_args():
         help="Run the configuration with a GUI (not in headless mode).",
         action="store_true",
         default=False
+    )
+    configure_parser.add_argument(
+        "--guest-os-type",
+        dest="guest_os_type",
+        help="Guest OS type for the VM (default: debian_64)",
+        type=str,
+        default="debian_64"
+    )
+    configure_parser.add_argument(
+        "--tools-upload-flavor",
+        dest="tools_upload_flavor",
+        help="VMware only: Which VMware Tools flavor to upload ('linux' or 'windows', default: linux)",
+        type=str,
+        choices=["linux", "windows"],
+        default="linux"
+    )
+
+    configure_parser.add_argument(
+        "--vmware-version",
+        dest="vmware_version",
+        help="VMware only: Virtual hardware version (default: 16)",
+        type=int,
+        default=16
     )
 
     # Get arg results
