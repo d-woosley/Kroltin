@@ -50,7 +50,6 @@ class Packer:
         preseed_file: str,
         headless: bool,
         guest_os_type: str,
-        tools_upload_flavor: str,
         vmware_version: int,
     ) -> bool:
         """Build the VM image (golden image) using HashiCorp Packer CLI.
@@ -97,7 +96,6 @@ class Packer:
             f"build_path={self._build_path(vm_name)}",
             f"headless={'true' if headless else 'false'}",
             f"guest_os_type={guest_os_type}",
-            #f"tools_upload_flavor={tools_upload_flavor}",
             f"vmware_version={vmware_version}",
             f"source_vmx_path={self._source_vmx_path(vm_name)}"
         ]
@@ -128,7 +126,6 @@ class Packer:
         export_path: str,
         headless: bool,
         guest_os_type: str,
-        tools_upload_flavor: str,
         vmware_version: int,
         ) -> bool:
         """Configure an existing VM golden image using Packer."""
@@ -154,7 +151,6 @@ class Packer:
             f"build_path={self._build_path(vm_name)}",
             f"headless={'true' if headless else 'false'}",
             f"guest_os_type={guest_os_type}",
-            f"tools_upload_flavor={tools_upload_flavor}",
             f"version={vmware_version}",
             f"source_vmx_path={self._source_vmx_path(vm_name)}"
         ]

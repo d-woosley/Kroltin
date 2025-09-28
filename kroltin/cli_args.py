@@ -285,15 +285,6 @@ def load_args():
         default="debian_64"
     )
     golden_parser.add_argument(
-        "--tools-upload-flavor",
-        dest="tools_upload_flavor",
-        help="VMware only: Which VMware Tools flavor to upload ('linux' or 'windows', default: linux)",
-        type=str,
-        choices=["linux", "windows"],
-        default="linux"
-    )
-
-    golden_parser.add_argument(
         "--vmware-version",
         dest="vmware_version",
         help="VMware only: Virtual hardware version (default: 16)",
@@ -376,15 +367,6 @@ def load_args():
         type=str,
         default="debian_64"
     )
-    configure_parser.add_argument(
-        "--tools-upload-flavor",
-        dest="tools_upload_flavor",
-        help="VMware only: Which VMware Tools flavor to upload ('linux' or 'windows', default: linux)",
-        type=str,
-        choices=["linux", "windows"],
-        default="linux"
-    )
-
     configure_parser.add_argument(
         "--vmware-version",
         dest="vmware_version",
