@@ -91,7 +91,6 @@ class Kroltin:
                 preseed_file=self.args.preseed_file,
                 headless=self.args.headless,
                 guest_os_type=self.args.guest_os_type,
-                tools_upload_flavor=self.args.tools_upload_flavor,
                 vmware_version=self.args.vmware_version
             ):
                 self.logger.info(f"Golden Image build successful! SHA256: {self.packer.sha256_hash}")
@@ -107,7 +106,6 @@ class Kroltin:
                 export_path=self.args.export_path,
                 headless=self.args.headless,
                 guest_os_type=self.args.guest_os_type,
-                tools_upload_flavor=self.args.tools_upload_flavor,
                 vmware_version=self.args.vmware_version
             ):
                 self.logger.info(f"VM configurion successful! SHA256: {self.packer.sha256_hash}")
