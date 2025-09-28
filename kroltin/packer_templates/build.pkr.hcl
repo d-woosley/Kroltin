@@ -118,7 +118,7 @@ build {
       only = ["virtualbox-iso.vm"]
       inline = [
         "VBoxManage export '${var.name}' --output '${var.export_path}.ova'",
-        "VBoxManage unregistervm '${var.name}' --delete || true"
+        "VBoxManage unregistervm '${var.name}'"
       ]
     }
     post-processor "shell-local" {

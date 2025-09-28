@@ -107,7 +107,7 @@ class Packer:
             if self._run_packer(cmd):
                 self._get_build_hash(vm_name, self._map_extension(vm_type))
                 self._remove_filled_preseed()
-                #self._remove_build_path(vm_name)  # TEMP FOR DEBUG
+                self._remove_build_path(vm_name)
                 return True
             return False
         except Exception as e:
