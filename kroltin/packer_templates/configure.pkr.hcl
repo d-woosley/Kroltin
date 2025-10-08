@@ -16,15 +16,17 @@ packer {
 }
 locals { version = formatdate("YYYY.MM.DD", timestamp()) }
 
-variable "name"         { type = string }
-variable "vm_file"      { type = string }
-variable "vm_type"      { type = list(string) }
-variable "ssh_username" { type = string }
-variable "ssh_password" { type = string }
-variable "scripts"      { type = list(string) }
-variable "export_path"  { type = string }
-variable "build_path"   { type = string }
-variable "headless"     { type = bool }
+
+variable "name"             { type = string }
+variable "vm_file"          { type = string }
+variable "vm_type"          { type = list(string) }
+variable "ssh_username"     { type = string }
+variable "ssh_password"     { type = string }
+variable "scripts"          { type = list(string) }
+variable "export_path"      { type = string }
+variable "build_path"       { type = string }
+variable "headless"         { type = bool }
+variable "export_file_type" { type = string }
 
 source "virtualbox-ovf" "vm" {
   source_path = var.vm_file
@@ -40,6 +42,18 @@ source "virtualbox-ovf" "vm" {
   shutdown_command     = "echo '${var.ssh_password}' | sudo -S shutdown -P now"
 }
 
+source "vmware-vmx" "vm" {
+  source_path      = var.vm_file
+  vm_name          = var.name
+  communicator     = "ssh"
+  ssh_username     = var.ssh_username
+  ssh_password     = var.ssh_password
+  headless         = var.headless
+  ssh_timeout      = "10m"
+  output_directory = "${var.build_path}"
+  shutdown_command = "echo '${var.ssh_password}' | sudo -S shutdown -P now"
+}
+
 build {
   sources = var.vm_type
 
@@ -52,9 +66,16 @@ build {
 
   post-processors {
     post-processor "shell-local" {
+      only = ["virtualbox-ovf.vm"]
       inline = [
-        "VBoxManage export '${var.name}' --output '${var.export_path}/${var.name}-${local.version}.ova'",
-        "VBoxManage unregistervm '${var.name}' --delete || true"
+        "VBoxManage export '${var.name}' --output '${var.export_path}.${var.export_file_type}' || true",
+        "VBoxManage unregistervm '${var.name}'"
+      ]
+    }
+    post-processor "shell-local" {
+      only = ["vmware-vmx.vm"]
+      inline = [
+        "ovftool '${var.build_path}/${var.name}.vmx' '${var.export_path}.${var.export_file_type}' || true"
       ]
     }
   }

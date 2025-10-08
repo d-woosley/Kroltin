@@ -1,5 +1,6 @@
-from kroltin.threaded_cmd import run_command_stream
+from kroltin.threaded_cmd import CommandRunner
 import logging
+import os
 from os import path, remove
 import tempfile
 import importlib.resources as resources
@@ -13,6 +14,7 @@ class Packer:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
         self.timestamp = time.strftime('%Y%m%d_%H%M%S')
+        self.cmd_runner = CommandRunner()
 
         # Directories within the installed package
         self.scripts_dir = str(resources.files('kroltin').joinpath('scripts'))
@@ -125,8 +127,7 @@ class Packer:
         scripts: list,
         export_path: str,
         headless: bool,
-        guest_os_type: str,
-        vmware_version: int,
+        export_file_type: str,
         ) -> bool:
         """Configure an existing VM golden image using Packer."""
         self.logger.debug(
@@ -142,7 +143,8 @@ class Packer:
 
         packer_varables = [
             f"name={vm_name}",
-            f"vm_file={self._resolve_file_path(vm_file, self.golden_images_dir)}",
+            f"vm_file={self._find_vm(vm_file, vm_type)}",
+            #f"vm_file={self._resolve_file_path(vm_file, self.golden_images_dir)}",
             f"vm_type=[\"{self._map_sources(vm_type, build='configure')}\"]",
             f"ssh_username={ssh_username}",
             f"ssh_password={ssh_password}",
@@ -150,9 +152,7 @@ class Packer:
             f"export_path={export_path}",
             f"build_path={self._build_path(vm_name)}",
             f"headless={'true' if headless else 'false'}",
-            f"guest_os_type={guest_os_type}",
-            f"version={vmware_version}",
-            f"source_vmx_path={self._source_vmx_path(vm_name)}"
+            f"export_file_type={export_file_type}"
         ]
         
         cmd = self._build_packer_cmd(packer_varables, resolved_template)
@@ -180,7 +180,7 @@ class Packer:
         return cmd
 
     def _run_packer(self, cmd: list) -> bool:
-        returncode, stdout, stderr = run_command_stream(cmd)
+        returncode, stdout, stderr = self.cmd_runner.run_command_stream(cmd)
         if returncode == 0:
             return True
         else:
@@ -291,6 +291,28 @@ class Packer:
         if user_path.exists():
             return str(user_path.resolve())
         return None
+    
+    def _find_vm(self, vm_file: str, vm_type: str) -> str:
+        """Return the VM file path for a given VM builder type"""
+        if vm_type == "vmware":
+            resolved_path = self._resolve_file_path(vm_file, self.golden_images_dir)
+            if path.isdir(resolved_path):
+                return self._find_vmx_in_dir(resolved_path)
+            elif resolved_path.endswith('.vmx') and path.isfile(resolved_path):
+                return resolved_path
+            else:
+                self.logger.error(f"Provided path is not a .vmx file or directory: {resolved_path}")
+                raise FileNotFoundError(f"Provided path is not a .vmx file or directory: {resolved_path}")
+        return self._resolve_file_path(vm_file, self.golden_images_dir)
+
+    def _find_vmx_in_dir(self, directory: str) -> str:
+        """Recursively search for the first .vmx file in a directory."""
+        for root, dirs, files in os.walk(directory):
+            for file in files:
+                if file.endswith('.vmx'):
+                    return path.join(root, file)
+        self.logger.error(f"No .vmx file found in directory: {directory}")
+        raise FileNotFoundError(f"No .vmx file found in directory: {directory}")
 
     def _resolve_scripts(self, scripts: list) -> list:
         """Return a list of absolute paths for scripts, checking scripts dir first, then user path."""

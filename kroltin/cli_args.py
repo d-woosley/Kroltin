@@ -355,24 +355,19 @@ def load_args():
     )
     configure_parser.add_argument(
         "--no-headless",
-        dest="no_headless",
+        dest="headless",
         help="Run the configuration with a GUI (not in headless mode).",
-        action="store_true",
-        default=False
+        action="store_false",
+        default=True
     )
+
     configure_parser.add_argument(
-        "--guest-os-type",
-        dest="guest_os_type",
-        help="Guest OS type for the VM (default: debian_64)",
+        "--export-file-type",
+        dest="export_file_type",
+        help="Export file type: ova, ovf, or vmx (vmx is VMware only)",
         type=str,
-        default="debian_64"
-    )
-    configure_parser.add_argument(
-        "--vmware-version",
-        dest="vmware_version",
-        help="VMware only: Virtual hardware version (default: 16)",
-        type=int,
-        default=16
+        choices=["ova", "ovf", "vmx"],
+        default="ova"
     )
 
     # Get arg results
