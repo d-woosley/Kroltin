@@ -1,6 +1,7 @@
 
 from os import path, listdir, remove, getcwd
 from shutil import copy2
+import shutil
 import importlib.resources as resources
 import logging
 import pathlib
@@ -159,16 +160,21 @@ class KroltinSettings:
         self.logger.debug(f"Resolved source path: {src}")
         src_name = src.name
         self.logger.debug(f"Source name: {src_name}")
+
+        # If importing a .vmx file, handle VMware folder import
+        if src.is_file() and src.suffix == ".vmx":
+            return self._import_vmx_folder(src)
+
         dest = self.golden_images_dir / src_name
 
         if not src.exists():
             self.logger.error(f"Golden image source not found: {src}")
             return False
-        
+
         if dest.exists():
             self.logger.error(f"Golden image '{src_name}' already exists in golden_images.")
             return False
-        
+
         try:
             if src.is_dir():
                 self.logger.warning("Importing directories not supported.")
@@ -183,6 +189,28 @@ class KroltinSettings:
     # ----------------------------------------------------------------------
     # Helper Methods
     # ----------------------------------------------------------------------
+
+    def _import_vmx_folder(self, vmx_path: pathlib.Path):
+        """Helper to import a VMware VMX file and its folder structure into golden_images."""
+        vm_name = vmx_path.stem
+        # Assume parent folder contains all VM files
+        vm_folder = vmx_path.parent
+        dest_folder = self.golden_images_dir / vm_name / vm_name
+        self._ensure_directory(dest_folder)
+        try:
+            # Copy all files from vm_folder to dest_folder
+            for item in vm_folder.iterdir():
+                dest_item = dest_folder / item.name
+                if item.is_file():
+                    copy2(str(item), str(dest_item))
+                elif item.is_dir():
+                    # Recursively copy subfolders
+                    shutil.copytree(str(item), str(dest_item), dirs_exist_ok=True)
+            self.logger.info(f"VMware VM '{vm_name}' imported to {dest_folder}")
+            return True
+        except Exception as e:
+            self.logger.error(f"Failed to import VMware VM folder: {e}")
+            return False
 
     def _confirm_action(self, message: str = "") -> bool:
         """Display a y/N confirmation prompt. Returns True if 'y' is selected."""

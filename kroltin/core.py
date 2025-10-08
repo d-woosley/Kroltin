@@ -105,8 +105,7 @@ class Kroltin:
                 scripts=self.args.scripts,
                 export_path=self.args.export_path,
                 headless=self.args.headless,
-                guest_os_type=self.args.guest_os_type,
-                vmware_version=self.args.vmware_version
+                export_file_type=self.args.export_file_type
             ):
                 self.logger.info(f"VM configurion successful! SHA256: {self.packer.sha256_hash}")
         else:
