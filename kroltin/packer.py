@@ -105,9 +105,13 @@ class Packer:
         cmd = self._build_packer_cmd(packer_varables, resolved_template)
         try:
             if self._run_packer(cmd):
-                self._get_build_hash(vm_name, self._map_extension(vm_type))
                 self._remove_filled_preseed()
                 self._remove_build_path(vm_name)
+                self._get_build_hash(
+                    vm_name,
+                    self._map_extension(vm_type),
+                    self._export_file_path(vm_name, vm_type)
+                )
                 return True
             return False
         except Exception as e:
@@ -144,7 +148,6 @@ class Packer:
         packer_varables = [
             f"name={vm_name}",
             f"vm_file={self._find_vm(vm_file, vm_type)}",
-            #f"vm_file={self._resolve_file_path(vm_file, self.golden_images_dir)}",
             f"vm_type=[\"{self._map_sources(vm_type, build='configure')}\"]",
             f"ssh_username={ssh_username}",
             f"ssh_password={ssh_password}",
@@ -159,8 +162,12 @@ class Packer:
 
         try:
             if self._run_packer(cmd):
-                self._get_build_hash(vm_name, self._map_extension(vm_type))
                 self._remove_build_path(vm_name)
+                self._get_build_hash(
+                    vm_name,
+                    self._map_extension(vm_type),
+                    self._export_file_path(vm_name, vm_type)
+                )
                 return True
             return False
         except Exception as e:
@@ -224,16 +231,18 @@ class Packer:
             raise ValueError(f"Unsupported type '{vm_type}' for VM file extension mapping")
         return mapping.get(vm_type.lower(), vm_type)
     
-    def _get_build_hash(self, vm_name: str, vm_file_extension: str) -> str:
+    def _get_build_hash(self, vm_name: str, vm_file_extension: str, export_path: str) -> str:
         """Set the instance variables for MD5, SHA1, and SHA256 hashes from the .kroltin_build temporary directory"""
-        ova_path = path.join(self.temp_dir, vm_name, f"{vm_name}.{vm_file_extension}")
-        self._check_file_exists(ova_path)
+        if vm_file_extension == "vmx":
+            vm_path = path.join(export_path, f"{vm_name}.{vm_file_extension}")
+        elif vm_file_extension == "ova":
+            vm_path = f"{export_path}.{vm_file_extension}"
 
-        self.md5_hash = self._compute_file_hash(ova_path, algorithm='md5')
-        self.sha1_hash = self._compute_file_hash(ova_path, algorithm='sha1')
-        self.sha256_hash = self._compute_file_hash(ova_path, algorithm='sha256')
+        self.md5_hash = self._compute_file_hash(vm_path, algorithm='md5')
+        self.sha1_hash = self._compute_file_hash(vm_path, algorithm='sha1')
+        self.sha256_hash = self._compute_file_hash(vm_path, algorithm='sha256')
 
-        self.logger.debug(f"Computed hashes for {ova_path} - MD5: {self.md5_hash}, SHA1: {self.sha1_hash}, SHA256: {self.sha256_hash}")
+        self.logger.debug(f"Computed hashes for {vm_path} - MD5: {self.md5_hash}, SHA1: {self.sha1_hash}, SHA256: {self.sha256_hash}")
         return True
 
     @staticmethod
