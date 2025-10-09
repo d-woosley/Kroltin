@@ -441,13 +441,18 @@ class Packer:
             raise e
         
     def _remove_filled_preseed(self):
-        """Remove the filled preseed file if it exists."""
-        if hasattr(self, 'filled_preseed_path') and path.exists(self.filled_preseed_path):
-            try:
-                remove(self.filled_preseed_path)
-                self.logger.debug(f"Removed filled preseed file: {self.filled_preseed_path}")
-            except Exception as e:
-                self.logger.error(f"Error removing filled preseed file: {e}")
+        try:
+            remove(self.filled_preseed_path)
+            self.logger.debug(f"Removed filled preseed file: {self.filled_preseed_path}")
+        except Exception as e:
+            self.logger.error(f"Error removing filled preseed file: {e}")
+
+        try:
+            dirpath = path.dirname(self.filled_preseed_path)
+            shutil.rmtree(dirpath)
+            self.logger.debug(f"Removed preseed http directory: {dirpath}")
+        except Exception as e:
+            self.logger.error(f"Error removing preseed http directory: {e}")
 
     def _remove_build_path(self, vm_name: str):
         """Remove the temporary build path if it exists."""
