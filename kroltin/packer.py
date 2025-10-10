@@ -166,7 +166,7 @@ class Packer:
                 self._get_build_hash(
                     vm_name,
                     self._map_extension(vm_type),
-                    self._export_file_path(vm_name, vm_type)
+                    export_path
                 )
                 return True
             return False
@@ -272,17 +272,30 @@ class Packer:
         self.logger.debug(f"Temporary build path for VM '{vm_name}': {path.join(self.temp_dir, vm_name)}")
         return path.join(self.temp_dir, vm_name)
 
-    def _resolve_file_path(self, file_name: str, kroltin_dir: str) -> str:
-        """Return the absolute path, checking kroltin directoires first, then user path. Transfer to kroltin_dir if needed."""
-        kroltin_path = self._resolve_file(file_name, kroltin_dir)
-        if kroltin_path:
+    def _resolve_file_path(self, file_name: str, kroltin_dir: str,) -> str:
+        """Return the absolute path, checking kroltin directoires first, then user path. Perfer files in kroltin_dir"""
+        kroltin_path = path.join(kroltin_dir, path.basename(file_name))
+        if path.isfile(kroltin_path):
             return kroltin_path
         
-        user_path = self._find_user_file(file_name)
-        if user_path:
+        user_path = path.join(pathlib.Path(file_name), path.basename(file_name))
+        if path.isfile(user_path):
             return user_path
         
         self.logger.warning(f"File '{file_name}' not found in kroltin directories or at user path.")
+        return False
+    
+    def _resolve_dir_path(self, target_dir: str, kroltin_dir: str,) -> str:
+        """Return the absolute path to directory, checking kroltin directoires first, then user path. Perfer files in kroltin_dir"""
+        kroltin_path = path.join(kroltin_dir, path.basename(target_dir))
+        if path.isdir(kroltin_path):
+            return kroltin_path
+        
+        user_path = path.join(pathlib.Path(target_dir), path.basename(target_dir))
+        if path.isdir(user_path):
+            return user_path
+        
+        self.logger.warning(f"Directory '{target_dir}' not found in kroltin directories or at user path.")
         return False
 
     def _resolve_file(self, file_name: str, search_dir: str) -> str:
@@ -293,25 +306,12 @@ class Packer:
         elif path.isfile(file_name):
             return path.abspath(file_name)
         return None
-
-    def _find_user_file(self, file_name: str) -> str:
-        """Return the absolute path to the user-supplied VM file if it exists, else None."""
-        user_path = pathlib.Path(file_name)
-        if user_path.exists():
-            return str(user_path.resolve())
-        return None
     
     def _find_vm(self, vm_file: str, vm_type: str) -> str:
         """Return the VM file path for a given VM builder type"""
         if vm_type == "vmware":
-            resolved_path = self._resolve_file_path(vm_file, self.golden_images_dir)
-            if path.isdir(resolved_path):
-                return self._find_vmx_in_dir(resolved_path)
-            elif resolved_path.endswith('.vmx') and path.isfile(resolved_path):
-                return resolved_path
-            else:
-                self.logger.error(f"Provided path is not a .vmx file or directory: {resolved_path}")
-                raise FileNotFoundError(f"Provided path is not a .vmx file or directory: {resolved_path}")
+            return self._find_vmx_in_dir(self._resolve_dir_path(vm_file, self.golden_images_dir))
+                    
         return self._resolve_file_path(vm_file, self.golden_images_dir)
 
     def _find_vmx_in_dir(self, directory: str) -> str:
@@ -441,6 +441,7 @@ class Packer:
             raise e
         
     def _remove_filled_preseed(self):
+        """Remove the filled preseed file and its containing directory."""
         try:
             remove(self.filled_preseed_path)
             self.logger.debug(f"Removed filled preseed file: {self.filled_preseed_path}")
