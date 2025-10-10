@@ -13,6 +13,11 @@ class Kroltin:
         self.packer = Packer()
 
     def cli(self):
+        if self.args.list:
+            settings = KroltinSettings()
+            settings.list_all()
+            return
+
         if self.args.command == 'settings':
             settings = KroltinSettings()
             if self.args.list_all:

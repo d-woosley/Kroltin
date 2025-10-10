@@ -17,6 +17,13 @@ def load_args():
 
     # Add global arguments
     parser.add_argument(
+        "-ls",
+        dest="list",
+        help="List all scripts, packer template files, and golden images",
+        action="store_true",
+        default=False
+    )
+    parser.add_argument(
         '-d',
         "--debug",
         dest="debug",
@@ -43,7 +50,7 @@ def load_args():
     )
 
     # Add subparsers
-    subparsers = parser.add_subparsers(dest="command", required=True)
+    subparsers = parser.add_subparsers(dest="command", required=False)
 
     # Settings subcommand for script and packer file management
     settings_parser = subparsers.add_parser(
@@ -410,5 +417,9 @@ def load_args():
             except (KeyboardInterrupt, EOFError):
                 print('')
                 raise
+
+    # Ensure action is specified
+    if getattr(args, 'command', None) is None and not args.list:
+        parser.error("No action requested, add -h for help.")
 
     return(args)
