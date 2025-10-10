@@ -1,7 +1,10 @@
 import time
 import os
+import secrets
+import string
 from getpass import getpass
 from argparse import ArgumentParser
+import logging
 
 from kroltin.settings import KroltinSettings
 
@@ -16,6 +19,7 @@ class ArgsValidator:
     def __init__(self, settings: KroltinSettings):
         self.settings = settings
         self.parser = None
+        self.logger = logging.getLogger(__name__)
 
         self.description = "A Command and Control (C2) service for penetration testing"
         self.epilog = "by: Duncan Woosley (github.com/d-woosley)"
@@ -285,6 +289,14 @@ class ArgsValidator:
             required=False
         )
         golden_parser.add_argument(
+            "-rp",
+            "--random-password",
+            dest="random_password",
+            help="Generate a random 30-character password and use it instead of prompting (overrides --ssh-password)",
+            action="store_true",
+            default=False
+        )
+        golden_parser.add_argument(
             "--iso-checksum",
             dest="iso_checksum",
             help="Checksum for the ISO (required)",
@@ -443,13 +455,18 @@ class ArgsValidator:
                 for script in args.scripts:
                     self._validate_file_exists(script, self.settings.check_script_exists)
 
-            # Prompt for ssh password if missing
-            if not getattr(args, 'ssh_password', None):
-                try:
-                    args.ssh_password = getpass(prompt='SSH password: ')
-                except (KeyboardInterrupt, EOFError):
-                    print('')
-                    raise
+            # If random password requested, generate and use it
+            if getattr(args, 'random_password', False):
+                alphabet = string.ascii_letters + string.digits + string.punctuation
+                args.ssh_password = ''.join(secrets.choice(alphabet) for _ in range(30))
+            else:
+                # Prompt for ssh password if missing
+                if not getattr(args, 'ssh_password', None):
+                    try:
+                        args.ssh_password = getpass(prompt='SSH password: ')
+                    except (KeyboardInterrupt, EOFError):
+                        print('')
+                        raise
 
     def _ensure_action_specified(self, args):
         if getattr(args, 'command', None) is None and not getattr(args, 'list', False):

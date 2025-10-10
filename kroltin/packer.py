@@ -8,6 +8,7 @@ import pathlib
 import time
 import shutil
 import hashlib
+import crypt
 
 
 class Packer:
@@ -53,6 +54,7 @@ class Packer:
         headless: bool,
         guest_os_type: str,
         vmware_version: int,
+        random_password: bool = False,
     ) -> bool:
         """Build the VM image (golden image) using HashiCorp Packer CLI.
 
@@ -105,19 +107,13 @@ class Packer:
         cmd = self._build_packer_cmd(packer_varables, resolved_template)
         try:
             if self._run_packer(cmd):
-                self._remove_filled_preseed()
-                self._remove_build_path(vm_name)
-                self._get_build_hash(
-                    vm_name,
-                    self._map_extension(vm_type),
-                    self._export_file_path(vm_name, vm_type)
-                )
+                self._buld_cleanup(vm_name=vm_name, ssh_password=ssh_password, random_password_used=random_password)
+                self._get_build_hash(vm_name, self._map_extension(vm_type), self._export_file_path(vm_name, vm_type))
                 return True
             return False
         except Exception as e:
             self.logger.error(f"Error during golden build: {e}")
-            self._remove_filled_preseed()
-            self._remove_build_path(vm_name)
+            self._buld_cleanup(vm_name=vm_name, ssh_password=ssh_password, random_password_used=random_password)
             return False
 
     def configure(
@@ -132,7 +128,8 @@ class Packer:
         export_path: str,
         headless: bool,
         export_file_type: str,
-        ) -> bool:
+        random_password: bool = False,
+    ) -> bool:
         """Configure an existing VM golden image using Packer."""
         self.logger.debug(
             "Starting VM configure: %s, vm_name: %s, vm_type: %s, scripts: %s, "
@@ -162,17 +159,13 @@ class Packer:
 
         try:
             if self._run_packer(cmd):
-                self._remove_build_path(vm_name)
-                self._get_build_hash(
-                    vm_name,
-                    self._map_extension(vm_type),
-                    export_path
-                )
+                self._buld_cleanup(vm_name=vm_name, ssh_password=ssh_password, random_password_used=random_password)
+                self._get_build_hash(vm_name, self._map_extension(vm_type), export_path)
                 return True
             return False
         except Exception as e:
             self.logger.error(f"Error during VM configure: {e}")
-            self._remove_build_path(vm_name)
+            self._buld_cleanup(vm_name=vm_name, ssh_password=ssh_password, random_password_used=random_password)
             return False
     
     # ----------------------------------------------------------------------
@@ -425,12 +418,16 @@ class Packer:
         )
         
         try:
+            # Compute SHA-512 crypt hash for the provided password (if any)
+            if ssh_password:
+                password_crypt = self._generate_sha512_crypt(ssh_password)
+
             with open(preseed_file, 'r') as infile, open(self.filled_preseed_path, 'w') as outfile:
                 for line in infile:
                     if ssh_username:
                         line = line.replace('{{USERNAME}}', ssh_username)
-                    if ssh_password:
-                        line = line.replace('{{PASSWORD}}', ssh_password)
+                    if password_crypt:
+                        line = line.replace('{{PASSWORD_CRYPT}}', password_crypt)
                     if hostname:
                         line = line.replace('{{HOSTNAME}}', hostname)
                     outfile.write(line)
@@ -448,12 +445,14 @@ class Packer:
         except Exception as e:
             self.logger.error(f"Error removing filled preseed file: {e}")
 
+    def _generate_sha512_crypt(self, password: str) -> str:
+        """Generate a SHA-512 crypt(6) hash for the given password."""
         try:
-            dirpath = path.dirname(self.filled_preseed_path)
-            shutil.rmtree(dirpath)
-            self.logger.debug(f"Removed preseed http directory: {dirpath}")
+            salt = crypt.mksalt(crypt.METHOD_SHA512)
+            return crypt.crypt(password, salt)
         except Exception as e:
-            self.logger.error(f"Error removing preseed http directory: {e}")
+            self.logger.error(f"Failed to generate SHA-512 crypt hash via crypt module: {e}")
+            raise
 
     def _remove_build_path(self, vm_name: str):
         """Remove the temporary build path if it exists."""
@@ -464,3 +463,34 @@ class Packer:
                 self.logger.debug(f"Removed build path: {build_path}")
             except Exception as e:
                 self.logger.error(f"Error removing build path: {e}")
+
+    def _buld_cleanup(self, vm_name: str, ssh_password: str = None, random_password_used: bool = False):
+        """Centralized cleanup for golden/configure flows.
+
+        Removes the filled preseed and temporary build path. If a random
+        password was used, print it to stdout (not to logs) so it isn't
+        stored in logging outputs.
+        """
+        try:
+            # Remove preseed if it was created
+            try:
+                if hasattr(self, 'filled_preseed_path') and path.exists(self.filled_preseed_path):
+                    remove(self.filled_preseed_path)
+                    self.logger.debug(f"Removed filled preseed file: {self.filled_preseed_path}")
+            except Exception as e:
+                self.logger.error(f"Error removing filled preseed file: {e}")
+
+            # Remove build path
+            try:
+                build_path = self._build_path(vm_name)
+                if path.exists(build_path):
+                    shutil.rmtree(build_path)
+                    self.logger.debug(f"Removed build path: {build_path}")
+            except Exception as e:
+                self.logger.error(f"Error removing build path: {e}")
+
+            # If a random password was used, print it to stdout (not in logs)
+            if random_password_used and ssh_password:
+                print(f"  ######## Random SSH password for '{vm_name}': {ssh_password} ########")
+        except Exception:
+            self.logger.debug("_buld_cleanup encountered an unexpected error, continuing.")
