@@ -23,8 +23,6 @@ class Packer:
         self.preseed_dir = str(resources.files('kroltin').joinpath('preseed-files'))
         self.temp_dir = tempfile.gettempdir()
         self.http_directory = path.join(self.temp_dir, f"kroltin-preseed_{self.timestamp}")
-        if not path.exists(self.http_directory):
-            pathlib.Path(self.http_directory).mkdir(parents=True, exist_ok=True)
 
         # Log resoved paths
         self.logger.debug(f"scripts_dir:      {self.scripts_dir}")
@@ -105,15 +103,13 @@ class Packer:
         ]
 
         cmd = self._build_packer_cmd(packer_varables, resolved_template)
-        try:
-            if self._run_packer(cmd):
-                self._buld_cleanup(vm_name=vm_name, ssh_password=ssh_password, random_password_used=random_password)
-                self._get_build_hash(vm_name, self._map_extension(vm_type), self._export_file_path(vm_name, vm_type))
-                return True
-            return False
-        except Exception as e:
-            self.logger.error(f"Error during golden build: {e}")
-            self._buld_cleanup(vm_name=vm_name, ssh_password=ssh_password, random_password_used=random_password)
+
+        if self._run_packer(cmd):
+            self._build_cleanup(vm_name=vm_name, ssh_password=ssh_password, random_password_used=random_password)
+            self._get_build_hash(vm_name, self._map_extension(vm_type), self._export_file_path(vm_name, vm_type))
+            return True
+        else:
+            self._build_cleanup(vm_name=vm_name, ssh_password=ssh_password, random_password_used=random_password)
             return False
 
     def configure(
@@ -157,15 +153,12 @@ class Packer:
         
         cmd = self._build_packer_cmd(packer_varables, resolved_template)
 
-        try:
-            if self._run_packer(cmd):
-                self._buld_cleanup(vm_name=vm_name, ssh_password=ssh_password, random_password_used=random_password)
-                self._get_build_hash(vm_name, self._map_extension(vm_type), export_path)
-                return True
-            return False
-        except Exception as e:
-            self.logger.error(f"Error during VM configure: {e}")
-            self._buld_cleanup(vm_name=vm_name, ssh_password=ssh_password, random_password_used=random_password)
+        if self._run_packer(cmd):
+            self._build_cleanup(vm_name=vm_name, ssh_password=ssh_password, random_password_used=random_password)
+            self._get_build_hash(vm_name, self._map_extension(vm_type), export_path)
+            return True
+        else:
+            self._build_cleanup(vm_name=vm_name, ssh_password=ssh_password, random_password_used=random_password)
             return False
     
     # ----------------------------------------------------------------------
@@ -181,7 +174,10 @@ class Packer:
 
     def _run_packer(self, cmd: list) -> bool:
         returncode, stdout, stderr = self.cmd_runner.run_command_stream(cmd)
-        if returncode == 0:
+        self.logger.debug(f"Packer command returned code: {returncode}")
+        if returncode is None:
+            return False
+        elif int(returncode) == 0:
             return True
         else:
             return False
@@ -248,6 +244,43 @@ class Packer:
                 hash_func.update(chunk)
         
         return hash_func.hexdigest()
+
+    def _build_cleanup(self, vm_name: str, ssh_password: str = None, random_password_used: bool = False):
+        """Centralized cleanup for golden/configure flows.
+
+        Removes the filled preseed and temporary build path. If a random
+        password was used, print it to stdout (not to logs) so it isn't
+        stored in logging outputs.
+        """
+        try:
+            # Remove preseed file and directory if created
+            try:
+                if hasattr(self, 'filled_preseed_path') and path.exists(self.filled_preseed_path):
+                    remove(self.filled_preseed_path)
+                    self.logger.debug(f"Removed filled preseed file: {self.filled_preseed_path}")
+
+                if path.exists(self.http_directory):
+                    shutil.rmtree(self.http_directory)
+                    self.logger.debug(f"Removed preseed directory: {self.http_directory}")
+            except Exception as e:
+                self.logger.error(
+                    f"Error removing filled preseed file {self.filled_preseed_path} and directory {self.http_directory}: {e}"
+                )
+
+            # Remove build path
+            try:
+                build_path = self._build_path(vm_name)
+                if path.exists(build_path):
+                    shutil.rmtree(build_path)
+                    self.logger.debug(f"Removed build path: {build_path}")
+            except Exception as e:
+                self.logger.error(f"Error removing build path: {e}")
+
+            # If a random password was used, print it to stdout (not in logs)
+            if random_password_used and ssh_password:
+                print(f"  ######## Random SSH password for '{vm_name}': {ssh_password} ########")
+        except Exception:
+            self.logger.debug("_build_cleanup encountered an unexpected error, continuing.")
 
     # ----------------------------------------------------------------------
     # File Resolution Helper Methods
@@ -350,6 +383,16 @@ class Packer:
         self.logger.debug(f"Source VMX Path: {source_vmx_path}")
         return source_vmx_path
 
+    def _remove_build_path(self, vm_name: str):
+        """Remove the temporary build path if it exists."""
+        build_path = self._build_path(vm_name)
+        if path.exists(build_path):
+            try:
+                shutil.rmtree(build_path)
+                self.logger.debug(f"Removed build path: {build_path}")
+            except Exception as e:
+                self.logger.error(f"Error removing build path: {e}")
+
     # ----------------------------------------------------------------------
     # Packer Template Management
     # ----------------------------------------------------------------------
@@ -411,6 +454,9 @@ class Packer:
             hostname: str
         ) -> str:
         """Fill in the preseed file with the provided SSH username and password."""
+        if not path.exists(self.http_directory):
+            pathlib.Path(self.http_directory).mkdir(parents=True, exist_ok=True)
+
         self.filled_preseed_name = f"filled_{self.timestamp}_{path.basename(preseed_file)}"
         self.filled_preseed_path = path.join(
             self.http_directory, 
@@ -453,44 +499,3 @@ class Packer:
         except Exception as e:
             self.logger.error(f"Failed to generate SHA-512 crypt hash via crypt module: {e}")
             raise
-
-    def _remove_build_path(self, vm_name: str):
-        """Remove the temporary build path if it exists."""
-        build_path = self._build_path(vm_name)
-        if path.exists(build_path):
-            try:
-                shutil.rmtree(build_path)
-                self.logger.debug(f"Removed build path: {build_path}")
-            except Exception as e:
-                self.logger.error(f"Error removing build path: {e}")
-
-    def _buld_cleanup(self, vm_name: str, ssh_password: str = None, random_password_used: bool = False):
-        """Centralized cleanup for golden/configure flows.
-
-        Removes the filled preseed and temporary build path. If a random
-        password was used, print it to stdout (not to logs) so it isn't
-        stored in logging outputs.
-        """
-        try:
-            # Remove preseed if it was created
-            try:
-                if hasattr(self, 'filled_preseed_path') and path.exists(self.filled_preseed_path):
-                    remove(self.filled_preseed_path)
-                    self.logger.debug(f"Removed filled preseed file: {self.filled_preseed_path}")
-            except Exception as e:
-                self.logger.error(f"Error removing filled preseed file: {e}")
-
-            # Remove build path
-            try:
-                build_path = self._build_path(vm_name)
-                if path.exists(build_path):
-                    shutil.rmtree(build_path)
-                    self.logger.debug(f"Removed build path: {build_path}")
-            except Exception as e:
-                self.logger.error(f"Error removing build path: {e}")
-
-            # If a random password was used, print it to stdout (not in logs)
-            if random_password_used and ssh_password:
-                print(f"  ######## Random SSH password for '{vm_name}': {ssh_password} ########")
-        except Exception:
-            self.logger.debug("_buld_cleanup encountered an unexpected error, continuing.")

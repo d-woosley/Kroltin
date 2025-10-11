@@ -72,21 +72,23 @@ class CommandRunner:
         t_out.start()
         t_err.start()
 
+        rc = None
         try:
             rc = p.wait()
         except KeyboardInterrupt:
-            self._kill_process_group(p, signal.SIGTERM)
             try:
+                self.logger.debug("KeyboardInterrupt caught, gracefully terminating subprocess")
+                self._kill_process_group(p, signal.SIGTERM)
                 p.wait(timeout=5)
             except Exception:
+                self.logger.debug("Error while performing graceful shutdown, forcefully terminating subprocess")
                 self._kill_process_group(p, signal.SIGKILL)
-            rc = p.returncode if p.returncode is not None else 130
+                rc = p.returncode if p.returncode is not None else 130
         finally:
             t_out.join(timeout=1)
             t_err.join(timeout=1)
             self._unregister_child(p)
-
-        return rc, "\n".join(stdout_lines), "\n".join(stderr_lines)
+            return rc, "\n".join(stdout_lines), "\n".join(stderr_lines)
 
     # ----------------------------------------------------------------------
     # Child Registry
@@ -99,7 +101,6 @@ class CommandRunner:
     @classmethod
     def _unregister_child(cls, p):
         cls._children.discard(p)
-
 
     # ----------------------------------------------------------------------
     # Signal/Exit Handlers
