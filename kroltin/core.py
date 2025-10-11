@@ -112,7 +112,6 @@ class Kroltin:
                 export_path=self.args.export_path,
                 headless=self.args.headless,
                 export_file_type=self.args.export_file_type,
-                random_password=self.args.random_password
             ):
                 self.logger.info(f"VM configurion successful! SHA256: {self.packer.sha256_hash}")
         else:
