@@ -97,7 +97,7 @@ source "vmware-iso" "vm" {
                           "ethernet0.wakeonpcktrcv": "false"
                           }
   guest_os_type                   = var.guest_os_type
-  vmx_remove_ethernet_interfaces  = true
+  vmx_remove_ethernet_interfaces  = false
   version                         = var.vmware_version
   output_directory                = "${var.build_path}"
   shutdown_command                = "echo '${var.ssh_password}' | sudo -S shutdown -P now"
