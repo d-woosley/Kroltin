@@ -94,7 +94,7 @@ class Packer:
             f"http_directory={self.http_directory}",
             f"isos=[{self._quote_list(isos)}]",
             f"scripts=[{self._quote_list(self._resolve_scripts(scripts))}]",
-            f"export_path={self._export_file_path(vm_name, vm_type)}",
+            f"export_path={self._gold_export_path(vm_name, vm_type)}",
             f"build_path={self._build_path(vm_name)}",
             f"headless={'true' if headless else 'false'}",
             f"guest_os_type={guest_os_type}",
@@ -106,7 +106,6 @@ class Packer:
 
         if self._run_packer(cmd):
             self._build_cleanup(vm_name=vm_name, ssh_password=ssh_password, random_password_used=random_password)
-            self._get_build_hash(vm_name, self._map_extension(vm_type), self._export_file_path(vm_name, vm_type))
             return True
         else:
             self._build_cleanup(vm_name=vm_name, ssh_password=ssh_password, random_password_used=random_password)
@@ -148,14 +147,14 @@ class Packer:
             f"export_path={export_path}",
             f"build_path={self._build_path(vm_name)}",
             f"headless={'true' if headless else 'false'}",
-            f"export_file_type={export_file_type}"
+            f"export_file_type={self._config_export_path(vm_name, vm_type, export_file_type)}",
+            f"source_vmx_path={self._source_vmx_path(vm_name)}"
         ]
         
         cmd = self._build_packer_cmd(packer_varables, resolved_template)
 
         if self._run_packer(cmd):
             self._build_cleanup(vm_name=vm_name, ssh_password=ssh_password, random_password_used=random_password)
-            self._get_build_hash(vm_name, self._map_extension(vm_type), export_path)
             return True
         else:
             self._build_cleanup(vm_name=vm_name, ssh_password=ssh_password, random_password_used=random_password)
@@ -220,20 +219,6 @@ class Packer:
             raise ValueError(f"Unsupported type '{vm_type}' for VM file extension mapping")
         return mapping.get(vm_type.lower(), vm_type)
     
-    def _get_build_hash(self, vm_name: str, vm_file_extension: str, export_path: str) -> str:
-        """Set the instance variables for MD5, SHA1, and SHA256 hashes from the .kroltin_build temporary directory"""
-        if vm_file_extension == "vmx":
-            vm_path = path.join(export_path, f"{vm_name}.{vm_file_extension}")
-        elif vm_file_extension == "ova":
-            vm_path = f"{export_path}.{vm_file_extension}"
-
-        self.md5_hash = self._compute_file_hash(vm_path, algorithm='md5')
-        self.sha1_hash = self._compute_file_hash(vm_path, algorithm='sha1')
-        self.sha256_hash = self._compute_file_hash(vm_path, algorithm='sha256')
-
-        self.logger.debug(f"Computed hashes for {vm_path} - MD5: {self.md5_hash}, SHA1: {self.sha1_hash}, SHA256: {self.sha256_hash}")
-        return True
-
     @staticmethod
     def _compute_file_hash(file_path, algorithm: str = 'sha256') -> str:
         """Compute the hash of a file using the specified algorithm."""
@@ -370,18 +355,29 @@ class Packer:
         self.logger.error(f"Packer template '{template_name}' not found in packer_templates dir or at user path.")
         raise FileNotFoundError(f"Packer template '{template_name}' not found in packer_templates dir or at user path.")
 
-    def _export_file_path(self, vm_name: str, vm_type: str) -> str:
-        """Return the full export file path with timestamp for a VM."""
+    def _gold_export_path(self, vm_name: str, vm_type: str) -> str:
+        """Return the full golden build export file path for a given VM type."""
         if vm_type == "vmware":
             return path.join(self.golden_images_dir, vm_name, vm_name)
         
         return path.join(self.golden_images_dir, vm_name)
     
+    def _config_export_path(self, vm_name: str, vm_type: str, export_path: str) -> str:
+        """
+        Return the full configuration build export file path for a given VM type. 
+        Create VMware VM directory if needed.
+        """
+        if vm_type == "vmware":
+            if not path.isdir(export_path):
+                os.makedirs(export_path, exist_ok=True)
+
+            return path.join(export_path, path.basename(export_path))
+
+        return export_path
+    
     def _source_vmx_path(self, vm_name: str) -> str:
         """Return the full path to the VMX file for a given VM name."""
-        source_vmx_path = path.join(self._build_path(vm_name), f"{vm_name}.vmx")
-        self.logger.debug(f"Source VMX Path: {source_vmx_path}")
-        return source_vmx_path
+        return path.join(self._build_path(vm_name), f"{vm_name}.vmx") 
 
     def _remove_build_path(self, vm_name: str):
         """Remove the temporary build path if it exists."""
@@ -417,7 +413,8 @@ class Packer:
             "ssh_username=dummyuser",
             "ssh_password=dummypass",
             f'scripts=["{test_script_path}"]',
-            "export_path=dummy_export_path"
+            "export_path=dummy_export_path",
+            "source_vmx_path=example-vmx-path.vmx"
         ]
         # Golden variables and defaults
         golden_vars = [

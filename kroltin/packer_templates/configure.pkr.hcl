@@ -27,6 +27,7 @@ variable "export_path"      { type = string }
 variable "build_path"       { type = string }
 variable "headless"         { type = bool }
 variable "export_file_type" { type = string }
+variable "source_vmx_path"  { type = string }
 
 source "virtualbox-ovf" "vm" {
   source_path = var.vm_file
@@ -75,7 +76,7 @@ build {
     post-processor "shell-local" {
       only = ["vmware-vmx.vm"]
       inline = [
-        "ovftool '${var.build_path}/${var.name}.vmx' '${var.export_path}.${var.export_file_type}' || true"
+        "ovftool '${var.source_vmx_path}' '${var.export_path}.${var.export_file_type}' || true"
       ]
     }
   }

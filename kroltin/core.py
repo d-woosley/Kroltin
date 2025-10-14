@@ -99,7 +99,7 @@ class Kroltin:
                 vmware_version=self.args.vmware_version,
                 random_password=self.args.random_password
             ):
-                self.logger.info(f"Golden Image build successful! SHA256: {self.packer.sha256_hash}")
+                self.logger.info(f"Golden Image build successful!")
         elif self.args.command == 'configure':
             if self.packer.configure(
                 packer_template=self.args.packer_template,
@@ -113,7 +113,7 @@ class Kroltin:
                 headless=self.args.headless,
                 export_file_type=self.args.export_file_type,
             ):
-                self.logger.info(f"VM configurion successful! SHA256: {self.packer.sha256_hash}")
+                self.logger.info(f"VM configurion successful!")
         else:
             self.logger.info("Running Kroltin CLI")
 
