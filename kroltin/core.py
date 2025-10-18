@@ -91,6 +91,7 @@ class Kroltin:
                 disk_size=self.args.disk_size,
                 ssh_username=self.args.ssh_username,
                 ssh_password=self.args.ssh_password,
+                hostname=self.args.hostname,
                 iso_checksum=self.args.iso_checksum,
                 scripts=self.args.scripts,
                 preseed_file=self.args.preseed_file,
@@ -108,10 +109,12 @@ class Kroltin:
                 vm_file=self.args.vm_file,
                 ssh_username=self.args.ssh_username,
                 ssh_password=self.args.ssh_password,
+                hostname=self.args.hostname,
                 scripts=self.args.scripts,
                 export_path=self.args.export_path,
                 headless=self.args.headless,
                 export_file_type=self.args.export_file_type,
+                random_password=self.args.random_password
             ):
                 self.logger.info(f"VM configurion successful!")
         else:

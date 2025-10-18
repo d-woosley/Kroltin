@@ -1,3 +1,9 @@
 #!/bin/bash
 
-echo "This is a test script."
+echo "=========================================="
+echo "Test Script - Template Variables"
+echo "=========================================="
+echo "USERNAME: '{{USERNAME}}'"
+#echo "PASSWORD_CRYPT: '{{PASSWORD_CRYPT}}'"
+echo "HOSTNAME: '{{HOSTNAME}}'"
+echo "=========================================="

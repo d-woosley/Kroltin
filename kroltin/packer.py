@@ -9,6 +9,7 @@ import time
 import shutil
 import hashlib
 import crypt
+import re
 
 
 class Packer:
@@ -22,14 +23,16 @@ class Packer:
         self.golden_images_dir = str(resources.files('kroltin').joinpath('golden_images'))
         self.preseed_dir = str(resources.files('kroltin').joinpath('preseed-files'))
         self.temp_dir = tempfile.gettempdir()
-        self.http_directory = path.join(self.temp_dir, f"kroltin-preseed_{self.timestamp}")
+        self.templates_build_dir = path.join(self.temp_dir, f"kroltin-templates_{self.timestamp}")
+        # Keep http_directory as alias for preseed files served over HTTP
+        self.http_directory = self.templates_build_dir
 
         # Log resoved paths
-        self.logger.debug(f"scripts_dir:      {self.scripts_dir}")
-        self.logger.debug(f"golden_images_dir:{self.golden_images_dir}")
-        self.logger.debug(f"preseed_dir:      {self.preseed_dir}")
-        self.logger.debug(f"temp_dir:         {self.temp_dir}")
-        self.logger.debug(f"http_directory:   {self.http_directory}")
+        self.logger.debug(f"scripts_dir:        {self.scripts_dir}")
+        self.logger.debug(f"golden_images_dir:  {self.golden_images_dir}")
+        self.logger.debug(f"preseed_dir:        {self.preseed_dir}")
+        self.logger.debug(f"temp_dir:           {self.temp_dir}")
+        self.logger.debug(f"templates_build_dir:{self.templates_build_dir}")
 
     # ----------------------------------------------------------------------
     # VM Build Methods
@@ -46,6 +49,7 @@ class Packer:
         disk_size: int,
         ssh_username: str,
         ssh_password: str,
+        hostname: str,
         iso_checksum: str,
         scripts: list,
         preseed_file: str,
@@ -78,7 +82,16 @@ class Packer:
             ),
             ssh_username=ssh_username,
             ssh_password=ssh_password,
-            hostname=vm_name
+            hostname=hostname
+        )
+
+        # Resolve and check scripts for template variables
+        resolved_scripts = self._resolve_scripts(scripts)
+        filled_scripts = self._check_and_fill_scripts(
+            resolved_scripts,
+            ssh_username=ssh_username,
+            ssh_password=ssh_password,
+            hostname=hostname
         )
 
         packer_varables = [
@@ -93,7 +106,7 @@ class Packer:
             f"preseed_file={self.filled_preseed_name}",
             f"http_directory={self.http_directory}",
             f"isos=[{self._quote_list(isos)}]",
-            f"scripts=[{self._quote_list(self._resolve_scripts(scripts))}]",
+            f"scripts=[{self._quote_list(filled_scripts)}]",
             f"export_path={self._gold_export_path(vm_name, vm_type)}",
             f"build_path={self._build_path(vm_name)}",
             f"headless={'true' if headless else 'false'}",
@@ -119,6 +132,7 @@ class Packer:
         vm_file: str,
         ssh_username: str,
         ssh_password: str,
+        hostname: str,
         scripts: list,
         export_path: str,
         headless: bool,
@@ -137,13 +151,22 @@ class Packer:
             self.logger.error(f"Packer init failed for template: {resolved_template}")
             return False
 
+        # Resolve and check scripts for template variables
+        resolved_scripts = self._resolve_scripts(scripts)
+        filled_scripts = self._check_and_fill_scripts(
+            resolved_scripts,
+            ssh_username=ssh_username,
+            ssh_password=ssh_password,
+            hostname=hostname
+        )
+
         packer_varables = [
             f"name={vm_name}",
             f"vm_file={self._find_vm(vm_file, vm_type)}",
             f"vm_type=[\"{self._map_sources(vm_type, build='configure')}\"]",
             f"ssh_username={ssh_username}",
             f"ssh_password={ssh_password}",
-            f"scripts=[{self._quote_list(self._resolve_scripts(scripts))}]",
+            f"scripts=[{self._quote_list(filled_scripts)}]",
             f"export_path={self._config_export_path(vm_name, vm_type, export_path)}",
             f"build_path={self._build_path(vm_name)}",
             f"headless={'true' if headless else 'false'}",
@@ -233,24 +256,18 @@ class Packer:
     def _build_cleanup(self, vm_name: str, ssh_password: str = None, random_password_used: bool = False):
         """Centralized cleanup for golden/configure flows.
 
-        Removes the filled preseed and temporary build path. If a random
-        password was used, print it to stdout (not to logs) so it isn't
-        stored in logging outputs.
+        Removes the filled preseed, filled scripts, and temporary build path. 
+        If a random password was used, print it to stdout (not to logs) so it 
+        isn't stored in logging outputs.
         """
         try:
-            # Remove preseed file and directory if created
+            # Remove templates build directory (contains filled preseed and scripts)
             try:
-                if hasattr(self, 'filled_preseed_path') and path.exists(self.filled_preseed_path):
-                    remove(self.filled_preseed_path)
-                    self.logger.debug(f"Removed filled preseed file: {self.filled_preseed_path}")
-
-                if path.exists(self.http_directory):
-                    shutil.rmtree(self.http_directory)
-                    self.logger.debug(f"Removed preseed directory: {self.http_directory}")
+                if path.exists(self.templates_build_dir):
+                    shutil.rmtree(self.templates_build_dir)
+                    self.logger.debug(f"Removed templates build directory: {self.templates_build_dir}")
             except Exception as e:
-                self.logger.error(
-                    f"Error removing filled preseed file {self.filled_preseed_path} and directory {self.http_directory}: {e}"
-                )
+                self.logger.error(f"Error removing templates build directory {self.templates_build_dir}: {e}")
 
             # Remove build path
             try:
@@ -444,6 +461,173 @@ class Packer:
     # Preseed File Handling
     # ----------------------------------------------------------------------
 
+    def _prompt_user_confirmation(self, message: str, default: bool = False) -> bool:
+        """Prompt user for yes/no confirmation.
+        
+        Args:
+            message: The question/message to display to the user
+            default: Default response if user just presses Enter (False = No, True = Yes)
+            
+        Returns:
+            True if user confirms (y/yes), False otherwise
+        """
+        prompt_suffix = "[Y/n]" if default else "[y/N]"
+        response = input(f"  {message} {prompt_suffix}: ").strip().lower()
+        
+        if not response:
+            return default
+        
+        return response in ['y', 'yes']
+
+    def _map_template_variables(self, **kwargs) -> dict:
+        """Map Python variable names to their template placeholders.
+        
+        Args:
+            **kwargs: Keyword arguments containing variable values
+            
+        Returns:
+            Dictionary mapping template placeholders to their values
+        """
+        # Define the mapping from Python variables to template placeholders
+        variable_mapping = {
+            'ssh_username': '{{USERNAME}}',
+            'hostname': '{{HOSTNAME}}',
+        }
+        
+        # Build the template variable map
+        template_map = {}
+        
+        for py_var, placeholder in variable_mapping.items():
+            value = kwargs.get(py_var)
+            if value is not None:
+                template_map[placeholder] = value
+        
+        # Handle special case: PASSWORD_CRYPT derived from ssh_password
+        if 'ssh_password' in kwargs and kwargs['ssh_password'] is not None:
+            password_crypt = self._generate_sha512_crypt(kwargs['ssh_password'])
+            template_map['{{PASSWORD_CRYPT}}'] = password_crypt
+        
+        return template_map
+
+    def _find_template_variables_in_file(self, file_path: str) -> set:
+        """Find all template variables ({{VAR}}) in a file.
+        
+        Args:
+            file_path: Path to the file to scan
+            
+        Returns:
+            Set of template variable placeholders found in the file
+        """
+        variables = set()
+        
+        try:
+            with open(file_path, 'r') as f:
+                content = f.read()
+                # Find all {{VARIABLE}} patterns
+                matches = re.findall(r'\{\{([A-Z_]+)\}\}', content)
+                variables = {f'{{{{{var}}}}}' for var in matches}
+        except Exception as e:
+            self.logger.error(f"Error scanning file for template variables: {e}")
+            
+        return variables
+
+    def _check_and_fill_scripts(self, script_paths: list, **kwargs) -> list:
+        """Check bash scripts for template variables and fill them if needed.
+        
+        Scans each script for template variables. If variables are found:
+        - If all required variables are provided, create filled versions
+        - If variables are missing, warn user and prompt to proceed
+        
+        Args:
+            script_paths: List of absolute paths to script files
+            **kwargs: Variable name/value pairs available for substitution
+            
+        Returns:
+            List of script paths (filled versions if variables were found, originals otherwise)
+        """
+        filled_scripts = []
+        
+        for script_path in script_paths:
+            # Find template variables in the script
+            found_vars = self._find_template_variables_in_file(script_path)
+            
+            if not found_vars:
+                # No variables found, use original script
+                filled_scripts.append(script_path)
+                continue
+            
+            # Check which variables we can fill
+            available_map = self._map_template_variables(**kwargs)
+            missing_vars = found_vars - set(available_map.keys())
+            
+            if missing_vars:
+                # Some variables are missing
+                self.logger.warning(
+                    f"Script '{path.basename(script_path)}' contains template variables "
+                    f"that were not provided: {', '.join(sorted(missing_vars))}"
+                )
+                
+                message = (
+                    f"Script '{path.basename(script_path)}' has unfilled variables: {', '.join(sorted(missing_vars))}.\n"
+                    f"  Do you want to proceed with this script anyway?"
+                )
+                
+                if not self._prompt_user_confirmation(message, default=False):
+                    self.logger.error(f"User declined to proceed with script: {script_path}")
+                    raise ValueError(f"Script '{path.basename(script_path)}' has missing required variables")
+            
+            # Create filled version of the script in templates_build_dir
+            script_basename = path.basename(script_path)
+            filled_script_name = f"filled_{self.timestamp}_{script_basename}"
+            filled_script_path = path.join(self.templates_build_dir, filled_script_name)
+            
+            # Ensure the templates_build_dir exists
+            if not path.exists(self.templates_build_dir):
+                pathlib.Path(self.templates_build_dir).mkdir(parents=True, exist_ok=True)
+            
+            self.logger.info(f"Filling template variables in script: {script_basename}")
+            self._fill_template_variables(
+                input_file=script_path,
+                output_file=filled_script_path,
+                **kwargs
+            )
+            
+            filled_scripts.append(filled_script_path)
+        
+        return filled_scripts
+
+    def _fill_template_variables(self,
+            input_file: str,
+            output_file: str,
+            **kwargs
+        ) -> bool:
+        """Fill in template variables in a file with the provided values.
+        
+        Args:
+            input_file: Path to the template file to read
+            output_file: Path to the output file to write
+            **kwargs: Variable name/value pairs (e.g., ssh_username='user', hostname='myhost')
+            
+        Returns:
+            True if successful, raises exception otherwise
+        """
+        # Get the variable mapping
+        variable_map = self._map_template_variables(**kwargs)
+        
+        try:
+            with open(input_file, 'r') as infile, open(output_file, 'w') as outfile:
+                for line in infile:
+                    # Replace all variables in the line
+                    for placeholder, value in variable_map.items():
+                        line = line.replace(placeholder, value)
+                    outfile.write(line)
+            
+            self.logger.debug(f"Filled template file created at: {output_file}")
+            return True
+        except Exception as e:
+            self.logger.error(f"Error filling template file: {e}")
+            raise e
+
     def _fill_pressed(self,
             preseed_file: str,
             ssh_username: str,
@@ -451,34 +635,26 @@ class Packer:
             hostname: str
         ) -> str:
         """Fill in the preseed file with the provided SSH username and password."""
-        if not path.exists(self.http_directory):
-            pathlib.Path(self.http_directory).mkdir(parents=True, exist_ok=True)
+        if not path.exists(self.templates_build_dir):
+            pathlib.Path(self.templates_build_dir).mkdir(parents=True, exist_ok=True)
 
         self.filled_preseed_name = f"filled_{self.timestamp}_{path.basename(preseed_file)}"
         self.filled_preseed_path = path.join(
-            self.http_directory, 
+            self.templates_build_dir, 
             self.filled_preseed_name
         )
         
-        try:
-            # Compute SHA-512 crypt hash for the provided password (if any)
-            if ssh_password:
-                password_crypt = self._generate_sha512_crypt(ssh_password)
-
-            with open(preseed_file, 'r') as infile, open(self.filled_preseed_path, 'w') as outfile:
-                for line in infile:
-                    if ssh_username:
-                        line = line.replace('{{USERNAME}}', ssh_username)
-                    if password_crypt:
-                        line = line.replace('{{PASSWORD_CRYPT}}', password_crypt)
-                    if hostname:
-                        line = line.replace('{{HOSTNAME}}', hostname)
-                    outfile.write(line)
-            self.logger.info(f"Filled preseed file created at: {self.filled_preseed_path}")
-            return True 
-        except Exception as e:
-            self.logger.error(f"Error filling preseed file: {e}")
-            raise e
+        # Use the new template filling function
+        self._fill_template_variables(
+            input_file=preseed_file,
+            output_file=self.filled_preseed_path,
+            ssh_username=ssh_username,
+            ssh_password=ssh_password,
+            hostname=hostname
+        )
+        
+        self.logger.info(f"Filled preseed file created at: {self.filled_preseed_path}")
+        return True
         
     def _remove_filled_preseed(self):
         """Remove the filled preseed file and its containing directory."""
