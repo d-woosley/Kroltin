@@ -144,10 +144,10 @@ class Packer:
             f"ssh_username={ssh_username}",
             f"ssh_password={ssh_password}",
             f"scripts=[{self._quote_list(self._resolve_scripts(scripts))}]",
-            f"export_path={export_path}",
+            f"export_path={self._config_export_path(vm_name, vm_type, export_path)}",
             f"build_path={self._build_path(vm_name)}",
             f"headless={'true' if headless else 'false'}",
-            f"export_file_type={self._config_export_path(vm_name, vm_type, export_file_type)}",
+            f"export_file_type={export_file_type}",
             f"source_vmx_path={self._source_vmx_path(vm_name)}"
         ]
         
