@@ -42,13 +42,54 @@ class ArgsValidator:
         timestamp = time.strftime('%Y%m%d_%H%M%S')
 
         self._add_global_args(parser)
+        
+        # Create parent parser for shared template variable arguments
+        template_vars_parser = ArgumentParser(add_help=False)
+        self._add_template_variable_args(template_vars_parser)
+        
         subparsers = parser.add_subparsers(dest="command", required=False)
         self._add_settings_subparser(subparsers)
-        self._add_golden_subparser(subparsers, timestamp)
-        self._add_configure_subparser(subparsers, timestamp)
+        self._add_golden_subparser(subparsers, timestamp, template_vars_parser)
+        self._add_configure_subparser(subparsers, timestamp, template_vars_parser)
 
         self.parser = parser
         return True
+
+    def _add_template_variable_args(self, parser: ArgumentParser):
+        """Add template variable arguments to a parser (shared by golden and configure)."""
+        template_vars_group = parser.add_argument_group(
+            'Template Variables',
+            'Variables that can be used in preseed files and bash scripts via {{VARIABLE}} placeholders'
+        )
+        template_vars_group.add_argument(
+            "--ssh-username",
+            dest="ssh_username",
+            help="SSH username for the VM (mapped to {{USERNAME}} in templates; default: kroltin)",
+            type=str,
+            default="kroltin"
+        )
+        template_vars_group.add_argument(
+            "--ssh-password",
+            dest="ssh_password",
+            help="SSH password for the VM (mapped to {{PASSWORD_CRYPT}} in templates; will prompt if omitted)",
+            type=str,
+            required=False
+        )
+        template_vars_group.add_argument(
+            "-rp",
+            "--random-password",
+            dest="random_password",
+            help="Generate a random 30-character password (overrides --ssh-password)",
+            action="store_true",
+            default=False
+        )
+        template_vars_group.add_argument(
+            "--hostname",
+            dest="hostname",
+            help="Hostname for the VM (mapped to {{HOSTNAME}} in templates; default: uses --vm-name)",
+            type=str,
+            required=False
+        )
 
     def _add_global_args(self, parser: ArgumentParser):
         parser.add_argument(
@@ -218,10 +259,11 @@ class ArgsValidator:
             default=None
         )
 
-    def _add_golden_subparser(self, subparsers, timestamp):
+    def _add_golden_subparser(self, subparsers, timestamp, template_vars_parser):
         golden_parser = subparsers.add_parser(
             "golden",
-            help="Run a packer VM build (golden image)"
+            help="Run a packer VM build (golden image)",
+            parents=[template_vars_parser]
         )
         golden_parser.add_argument(
             "--vm-type",
@@ -275,28 +317,6 @@ class ArgsValidator:
             default=81920
         )
         golden_parser.add_argument(
-            "--ssh-username",
-            dest="ssh_username",
-            help="SSH username for the VM (default: kroltin)",
-            type=str,
-            default="kroltin"
-        )
-        golden_parser.add_argument(
-            "--ssh-password",
-            dest="ssh_password",
-            help="SSH password for the VM (will prompt if omitted)",
-            type=str,
-            required=False
-        )
-        golden_parser.add_argument(
-            "-rp",
-            "--random-password",
-            dest="random_password",
-            help="Generate a random 30-character password and use it instead of prompting (overrides --ssh-password)",
-            action="store_true",
-            default=False
-        )
-        golden_parser.add_argument(
             "--iso-checksum",
             dest="iso_checksum",
             help="Checksum for the ISO (required)",
@@ -339,10 +359,11 @@ class ArgsValidator:
             default=16
         )
 
-    def _add_configure_subparser(self, subparsers, timestamp):
+    def _add_configure_subparser(self, subparsers, timestamp, template_vars_parser):
         configure_parser = subparsers.add_parser(
             "configure",
-            help="Configure an new VM image using an exsisting golden VM"
+            help="Configure an new VM image using an exsisting golden VM",
+            parents=[template_vars_parser]
         )
         configure_parser.add_argument(
             "--vm-type",
@@ -374,20 +395,6 @@ class ArgsValidator:
             default=time.strftime('kroltin-%Y%m%d_%H%M%S')
         )
         configure_parser.add_argument(
-            "--ssh-username",
-            dest="ssh_username",
-            help="SSH username for the VM (Default: kroltin)",
-            type=str,
-            default="kroltin"
-        )
-        configure_parser.add_argument(
-            "--ssh-password",
-            dest="ssh_password",
-            help="SSH password for the VM (will prompt if omitted)",
-            type=str,
-            required=False
-        )
-        configure_parser.add_argument(
             "--scripts",
             dest="scripts",
             nargs='*',
@@ -407,7 +414,6 @@ class ArgsValidator:
             action="store_false",
             default=True
         )
-
         configure_parser.add_argument(
             "--export-file-type",
             dest="export_file_type",
@@ -454,6 +460,10 @@ class ArgsValidator:
             if getattr(args, 'scripts', None):
                 for script in args.scripts:
                     self._validate_file_exists(script, self.settings.check_script_exists)
+
+            # Set hostname to vm_name if not provided
+            if not getattr(args, 'hostname', None):
+                args.hostname = getattr(args, 'vm_name', 'kroltin')
 
             # If random password requested, generate and use it
             if getattr(args, 'random_password', False):
