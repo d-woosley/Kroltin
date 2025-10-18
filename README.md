@@ -98,6 +98,7 @@ Kroltin supports dynamic variable substitution in preseed files and bash scripts
 | `{{USERNAME}}` | `--ssh-username` | SSH username (default: `kroltin`) |
 | `{{PASSWORD_CRYPT}}` | `--ssh-password` | SHA-512 crypt hash of the SSH password |
 | `{{HOSTNAME}}` | `--hostname` | Hostname (default: uses `--vm-name`) |
+| `{{TAILSCALE_KEY}}` | `--tailscale-key` | Tailscale authentication key for automatic network setup |
 
 ### Usage in Preseed Files
 
@@ -116,6 +117,10 @@ echo "Setting up user: {{USERNAME}}"
 echo "Hostname: {{HOSTNAME}}"
 useradd -m -s /bin/bash {{USERNAME}}
 echo "{{USERNAME}}:{{PASSWORD_CRYPT}}" | chpasswd -e
+
+# Install and configure Tailscale
+curl -fsSL https://tailscale.com/install.sh | sh
+tailscale up --authkey={{TAILSCALE_KEY}} --hostname={{HOSTNAME}}
 ```
 
 Variables are automatically detected and filled before script execution. If a script contains variables not provided via CLI, you will be prompted to proceed.
@@ -222,6 +227,7 @@ kroltin golden [OPTIONS]
 - `--ssh-password <PASS>`: SSH password (prompted if omitted)
 - `-rp, --random-password`: Generate random 30-character password
 - `--hostname <NAME>`: Hostname (default: uses `--vm-name`)
+- `--tailscale-key <KEY>`: Tailscale authentication key for automatic network setup
 
 **Scripts:**
 - `--scripts <SCRIPT>...`: Scripts to run (space-separated)
@@ -248,6 +254,7 @@ kroltin configure [OPTIONS]
 - `--ssh-password <PASS>`: SSH password (prompted if omitted)
 - `-rp, --random-password`: Generate random 30-character password
 - `--hostname <NAME>`: Hostname (default: uses `--vm-name`)
+- `--tailscale-key <KEY>`: Tailscale authentication key for automatic network setup
 
 **Scripts:**
 - `--scripts <SCRIPT>...`: Scripts to run (space-separated)
@@ -288,7 +295,6 @@ The following features are planned:
 - **Local ISO runs**: Testing and validation of local ISO builds
 - **Cloud upload and sharing**: Automatic uploads to cloud storage with one-time download links, emailed to primary and CC'd contacts
 - **Password change during configuration**: Allow password updates in configuration builds
-- **Tailscale key variable**: Auto-configuration with Tailscale keys via template variables
 - **Bundles**: Preconfigured flag sets for common VM types to simplify command invocation
 
 ## Project Structure

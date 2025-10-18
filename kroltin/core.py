@@ -98,7 +98,8 @@ class Kroltin:
                 headless=self.args.headless,
                 guest_os_type=self.args.guest_os_type,
                 vmware_version=self.args.vmware_version,
-                random_password=self.args.random_password
+                random_password=self.args.random_password,
+                tailscale_key=self.args.tailscale_key
             ):
                 self.logger.info(f"Golden Image build successful!")
         elif self.args.command == 'configure':
@@ -114,7 +115,8 @@ class Kroltin:
                 export_path=self.args.export_path,
                 headless=self.args.headless,
                 export_file_type=self.args.export_file_type,
-                random_password=self.args.random_password
+                random_password=self.args.random_password,
+                tailscale_key=self.args.tailscale_key
             ):
                 self.logger.info(f"VM configurion successful!")
         else:

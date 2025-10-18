@@ -57,6 +57,7 @@ class Packer:
         guest_os_type: str,
         vmware_version: int,
         random_password: bool = False,
+        tailscale_key: str = None,
     ) -> bool:
         """Build the VM image (golden image) using HashiCorp Packer CLI.
 
@@ -91,7 +92,8 @@ class Packer:
             resolved_scripts,
             ssh_username=ssh_username,
             ssh_password=ssh_password,
-            hostname=hostname
+            hostname=hostname,
+            tailscale_key=tailscale_key
         )
 
         packer_varables = [
@@ -138,6 +140,7 @@ class Packer:
         headless: bool,
         export_file_type: str,
         random_password: bool = False,
+        tailscale_key: str = None,
     ) -> bool:
         """Configure an existing VM golden image using Packer."""
         self.logger.debug(
@@ -157,7 +160,8 @@ class Packer:
             resolved_scripts,
             ssh_username=ssh_username,
             ssh_password=ssh_password,
-            hostname=hostname
+            hostname=hostname,
+            tailscale_key=tailscale_key
         )
 
         packer_varables = [
@@ -492,6 +496,7 @@ class Packer:
         variable_mapping = {
             'ssh_username': '{{USERNAME}}',
             'hostname': '{{HOSTNAME}}',
+            'tailscale_key': '{{TAILSCALE_KEY}}',
         }
         
         # Build the template variable map

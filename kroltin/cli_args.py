@@ -90,6 +90,13 @@ class ArgsValidator:
             type=str,
             required=False
         )
+        template_vars_group.add_argument(
+            "--tailscale-key",
+            dest="tailscale_key",
+            help="Tailscale auth key for the VM (mapped to {{TAILSCALE_KEY}} in templates)",
+            type=str,
+            required=False
+        )
 
     def _add_global_args(self, parser: ArgumentParser):
         parser.add_argument(
