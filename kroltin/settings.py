@@ -7,6 +7,7 @@ import logging
 import pathlib
 
 from kroltin.packer import Packer
+from kroltin.template_manager import TemplateManager
 
 
 # ANSI Colors
@@ -21,6 +22,7 @@ class KroltinSettings:
         self.packer_dir = resources.files('kroltin') / 'packer_templates'
         self.golden_images_dir = resources.files('kroltin') / 'golden_images'
         self.preseed_dir = resources.files('kroltin') / 'preseed-files'
+        self.template_manager = TemplateManager()
 
         self._ensure_directory(dir=self.golden_images_dir)
 
@@ -65,12 +67,17 @@ class KroltinSettings:
         preseed_files = self._get_files(self.preseed_dir, exts=['.cfg', '.seed'])
         self.logger.info(f"Preseed Files: {', '.join(preseed_files)}")
 
+    def list_build_templates(self) -> None:
+        """Print a list of all build templates."""
+        self.template_manager.print_templates()
+
     def list_all(self):
-        """Print all packer templates, script files, and golden images."""
+        """Print all packer templates, script files, golden images, and build templates."""
         self.list_packer_templates()
         self.list_scripts()
         self.list_golden_images()
         self.list_preseed_files()
+        self.list_build_templates()
 
     # ----------------------------------------------------------------------
     # Update Methods

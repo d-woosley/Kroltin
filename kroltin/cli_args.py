@@ -102,7 +102,15 @@ class ArgsValidator:
         parser.add_argument(
             "-ls",
             dest="list",
-            help="List all scripts, packer template files, and golden images",
+            help="List all scripts, packer template files, golden images, and build templates",
+            action="store_true",
+            default=False
+        )
+        parser.add_argument(
+            "-lt",
+            "--list-templates",
+            dest="list_templates",
+            help="List all available build templates",
             action="store_true",
             default=False
         )
@@ -273,24 +281,32 @@ class ArgsValidator:
             parents=[template_vars_parser]
         )
         golden_parser.add_argument(
+            "-t",
+            "--template",
+            dest="template",
+            help="Use a predefined build template (e.g., kali-latest, kali-minimal)",
+            type=str,
+            default=None
+        )
+        golden_parser.add_argument(
             "--vm-type",
             dest="vm_type",
-            help="Type of VM to build (required): vmware, virtualbox, hyperv, all",
+            help="Type of VM to build: vmware, virtualbox, hyperv",
             type=str,
-            choices=["vmware", "virtualbox", "hyperv", "all"],
-            required=True
+            choices=["vmware", "virtualbox", "hyperv"],
+            required=False
         )
         golden_parser.add_argument(
             "--packer-template",
             dest="packer_template",
             help="Path to the packer template file (HCL or JSON).",
             type=str,
-            required=True
+            required=False
         )
         golden_parser.add_argument(
             "--iso",
             dest="isos",
-            required=True,
+            required=False,
             nargs='+',
             help="One or more paths or URLs to ISO files to use for the build (pass multiple separated by space)"
         )
@@ -328,7 +344,7 @@ class ArgsValidator:
             dest="iso_checksum",
             help="Checksum for the ISO (required)",
             type=str,
-            required=True
+            required=False
         )
         golden_parser.add_argument(
             "--scripts",
@@ -342,7 +358,7 @@ class ArgsValidator:
             "--preseed-file",
             dest="preseed_file",
             help="Custom preseed file to run during packer build",
-            required=True
+            required=False
         )
         golden_parser.add_argument(
             "--no-headless",
@@ -373,26 +389,34 @@ class ArgsValidator:
             parents=[template_vars_parser]
         )
         configure_parser.add_argument(
+            "-t",
+            "--template",
+            dest="template",
+            help="Use a predefined configure template (e.g., kali-tailscale)",
+            type=str,
+            default=None
+        )
+        configure_parser.add_argument(
             "--vm-type",
             dest="vm_type",
-            help="Type of VM to configure (required): vmware, virtualbox, hyperv, all",
+            help="Type of VM to configure: vmware, virtualbox, hyperv",
             type=str,
-            choices=["vmware", "virtualbox", "hyperv", "all"],
-            required=True
+            choices=["vmware", "virtualbox", "hyperv"],
+            required=False
         )
         configure_parser.add_argument(
             "--packer-template",
             dest="packer_template",
             help="Packer template name (from installed templates) or path to a template file.",
             type=str,
-            required=True
+            required=False
         )
         configure_parser.add_argument(
             "--vm-file",
             dest="vm_file",
             help="Golden image name (from installed images) or path to a VM file to configure.",
             type=str,
-            required=True
+            required=False
         )
         configure_parser.add_argument(
             "--vm-name",
@@ -462,11 +486,35 @@ class ArgsValidator:
 
     def _validate_command_specific(self, args):
         if getattr(args, 'command', None) in ('golden', 'configure'):
-            if getattr(args, 'packer_template', None):
-                self._validate_file_exists(args.packer_template, self.settings.check_packer_template_exists)
-            if getattr(args, 'scripts', None):
-                for script in args.scripts:
-                    self._validate_file_exists(script, self.settings.check_script_exists)
+            # If using a template, validation is deferred to runtime
+            if not getattr(args, 'template', None):
+                # Validate normal (non-template) invocations
+                if getattr(args, 'packer_template', None):
+                    self._validate_file_exists(args.packer_template, self.settings.check_packer_template_exists)
+                if getattr(args, 'scripts', None):
+                    for script in args.scripts:
+                        self._validate_file_exists(script, self.settings.check_script_exists)
+                
+                # Ensure required fields are present when not using a template
+                if args.command == 'golden':
+                    if not getattr(args, 'vm_type', None):
+                        self.parser.error("--vm-type is required")
+                    if not getattr(args, 'packer_template', None):
+                        self.parser.error("--packer-template is required")
+                    if not getattr(args, 'isos', None):
+                        self.parser.error("--iso is required")
+                    if not getattr(args, 'iso_checksum', None):
+                        self.parser.error("--iso-checksum is required")
+                    if not getattr(args, 'preseed_file', None):
+                        self.parser.error("--preseed-file is required")
+                
+                if args.command == 'configure':
+                    if not getattr(args, 'vm_type', None):
+                        self.parser.error("--vm-type is required")
+                    if not getattr(args, 'packer_template', None):
+                        self.parser.error("--packer-template is required")
+                    if not getattr(args, 'vm_file', None):
+                        self.parser.error("--vm-file is required")
 
             # Set hostname to vm_name if not provided
             if not getattr(args, 'hostname', None):
@@ -486,7 +534,7 @@ class ArgsValidator:
                         raise
 
     def _ensure_action_specified(self, args):
-        if getattr(args, 'command', None) is None and not getattr(args, 'list', False):
+        if getattr(args, 'command', None) is None and not getattr(args, 'list', False) and not getattr(args, 'list_templates', False):
             self.parser.error("No action requested, add -h for help.")
 
     def _validate(self):
