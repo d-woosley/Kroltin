@@ -17,7 +17,7 @@
         "guest_os_type": "debian_64",
         "vmware_version": 16,
         "headless": true,
-        "scripts": ["kali-grant-root.sh", "apt-update.sh", "download-nessus.sh", "install-tailscale.sh", "start-systemctl-ssh.sh"]
+        "scripts": ["kali-grant-root.sh", "apt-update.sh", "download-nessus.sh", "install-tailscale.sh", "start-systemctl-ssh.sh", "enable-kali-desktop-gui.sh"]
       }
     },
     "kali-tailscale": {
@@ -37,7 +37,7 @@
         "guest_os_type": "debian_64",
         "vmware_version": 16,
         "headless": true,
-        "scripts": ["kali-grant-root.sh", "apt-update.sh", "download-nessus.sh", "install-tailscale.sh", "start-systemctl-ssh.sh"]
+        "scripts": ["kali-grant-root.sh", "apt-update.sh", "download-nessus.sh", "install-tailscale.sh", "start-systemctl-ssh.sh", "enable-kali-desktop-gui.sh"]
       }
     },
     "vmware-test": {
