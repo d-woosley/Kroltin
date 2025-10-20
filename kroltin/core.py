@@ -11,77 +11,81 @@ class Kroltin:
         self.args = load_args()
         self.logger = self._setup_logger()
         self.packer = Packer()
-
+        self.settings = KroltinSettings()
+        
     def cli(self):
         if self.args.list:
-            settings = KroltinSettings()
-            settings.list_all()
+            self.settings.list_all()
+            return
+
+        if self.args.list_templates: 
+            self.settings.list_build_templates()
             return
 
         if self.args.command == 'settings':
-            settings = KroltinSettings()
             if self.args.list_all:
-                settings.list_all()
+                self.settings.list_all()
             elif self.args.list_scripts:
-                settings.list_scripts()
+                self.settings.list_scripts()
             elif self.args.list_packer_templates:
-                settings.list_packer_templates()
+                self.settings.list_packer_templates()
             elif self.args.list_golden_images:
-                settings.list_golden_images()
+                self.settings.list_golden_images()
             elif self.args.list_preseed_files:
-                settings.list_preseed_files()
+                self.settings.list_preseed_files()
             elif self.args.import_golden_image:
-                settings.import_golden_image(self.args.import_golden_image)
+                self.settings.import_golden_image(self.args.import_golden_image)
             elif self.args.export_golden_image:
                 image_name = self.args.export_golden_image
                 dest_path = self.args.export_golden_image_path
-                settings.export_golden_image(image_name, dest_path)
+                self.settings.export_golden_image(image_name, dest_path)
             elif self.args.remove_golden_image:
-                settings.remove_golden_image(self.args.remove_golden_image)
+                self.settings.remove_golden_image(self.args.remove_golden_image)
             elif self.args.add_script:
                 self.logger.info(f"Adding script: {self.args.add_script}")
-                if settings.add_script(self.args.add_script):
+                if self.settings.add_script(self.args.add_script):
                     self.logger.info("Script added successfully.")
-                    settings.list_scripts()
+                    self.settings.list_scripts()
                 else:
                     self.logger.error("Failed to add script.")
             elif self.args.remove_script:
                 self.logger.info(f"Removing script: {self.args.remove_script}")
-                if settings.remove_script(self.args.remove_script):
+                if self.settings.remove_script(self.args.remove_script):
                     self.logger.info("Script removed successfully.")
-                    settings.list_scripts()
+                    self.settings.list_scripts()
                 else:
                     self.logger.error("Failed to remove script.")
             elif self.args.add_packer_template:
                 self.logger.info(f"Adding packer template: {self.args.add_packer_template}")
-                if settings.add_packer_template(self.args.add_packer_template):
+                if self.settings.add_packer_template(self.args.add_packer_template):
                     self.logger.info("Packer template added successfully.")
-                    settings.list_packer_templates()
+                    self.settings.list_packer_templates()
                 else:
                     self.logger.error("Failed to add packer template.")
             elif self.args.remove_packer_template:
                 self.logger.info(f"Removing packer template: {self.args.remove_packer_template}")
-                if settings.remove_packer_template(self.args.remove_packer_template):
+                if self.settings.remove_packer_template(self.args.remove_packer_template):
                     self.logger.info("Packer template removed successfully.")
-                    settings.list_packer_templates()
+                    self.settings.list_packer_templates()
                 else:
                     self.logger.error("Failed to remove packer template.")
             elif self.args.add_preseed_file:
                 self.logger.info(f"Adding preseed file: {self.args.add_preseed_file}")
-                if settings.add_preseed_file(self.args.add_preseed_file):
+                if self.settings.add_preseed_file(self.args.add_preseed_file):
                     self.logger.info("Preseed file added successfully.")
-                    settings.list_preseed_files()
+                    self.settings.list_preseed_files()
                 else:
                     self.logger.error("Failed to add preseed file.")
             elif self.args.remove_preseed_file:
                 self.logger.info(f"Removing preseed file: {self.args.remove_preseed_file}")
-                if settings.remove_preseed_file(self.args.remove_preseed_file):
+                if self.settings.remove_preseed_file(self.args.remove_preseed_file):
                     self.logger.info("Preseed file removed successfully.")
-                    settings.list_preseed_files()
+                    self.settings.list_preseed_files()
                 else:
                     self.logger.error("Failed to remove preseed file.")
         elif self.args.command == 'golden':
             if self.packer.golden(
+                template=self.args.template,
                 packer_template=self.args.packer_template,
                 vm_name=self.args.vm_name,
                 vm_type=self.args.vm_type,
@@ -104,6 +108,7 @@ class Kroltin:
                 self.logger.info(f"Golden Image build successful!")
         elif self.args.command == 'configure':
             if self.packer.configure(
+                template=self.args.template,
                 packer_template=self.args.packer_template,
                 vm_name=self.args.vm_name,
                 vm_type=self.args.vm_type,

@@ -1,0 +1,64 @@
+{
+  "templates": {
+    "kali-latest": {
+      "name": "Kali Linux Latest",
+      "description": "Latest Kali Linux build with default configuration",
+      "type": "golden",
+      "config": {
+        "vm_type": "vmware",
+        "packer_template": "build.pkr.hcl",
+        "iso": ["https://cdimage.kali.org/kali-2025.2/kali-linux-2025.2-installer-amd64.iso"],
+        "iso_checksum": "sha256:5723d46414b45575aa8e199740bbfde49e5b2501715ea999f0573e94d61e39d3",
+        "preseed_file": "kali-linux_2503.cfg",
+        "vm_name": "kali-linux-latest",
+        "cpus": 4,
+        "memory": 4096,
+        "disk_size": 81920,
+        "guest_os_type": "debian_64",
+        "vmware_version": 16,
+        "headless": true,
+        "scripts": ["kali-grant-root.sh", "apt-update.sh", "download-nessus.sh", "install-tailscale.sh", "start-systemctl-ssh.sh"]
+      }
+    },
+    "kali-tailscale": {
+      "name": "Tailscale connected Kali Linux",
+      "description": "Kali Linux with Tailscale VPN pre-configured",
+      "type": "golden",
+      "config": {
+        "vm_type": "vmware",
+        "packer_template": "build.pkr.hcl",
+        "iso": ["https://cdimage.kali.org/kali-2025.2/kali-linux-2025.2-installer-amd64.iso"],
+        "iso_checksum": "sha256:5723d46414b45575aa8e199740bbfde49e5b2501715ea999f0573e94d61e39d3",
+        "preseed_file": "kali-linux_2503.cfg",
+        "vm_name": "test-vmware",
+        "cpus": 4,
+        "memory": 4096,
+        "disk_size": 81920,
+        "guest_os_type": "debian_64",
+        "vmware_version": 16,
+        "headless": true,
+        "scripts": ["kali-grant-root.sh", "apt-update.sh", "download-nessus.sh", "install-tailscale.sh", "start-systemctl-ssh.sh"]
+      }
+    },
+    "vmware-test": {
+      "name": "VMware Test Build",
+      "description": "Test build for Kali Linux 2025.2 on VMware with Tailscale support",
+      "type": "golden",
+      "config": {
+        "vm_type": "vmware",
+        "packer_template": "build.pkr.hcl",
+        "iso": ["https://cdimage.kali.org/kali-2025.2/kali-linux-2025.2-installer-amd64.iso"],
+        "iso_checksum": "sha256:5723d46414b45575aa8e199740bbfde49e5b2501715ea999f0573e94d61e39d3",
+        "preseed_file": "kali-linux_2503.cfg",
+        "vm_name": "test-vmware",
+        "cpus": 2,
+        "memory": 4096,
+        "disk_size": 81920,
+        "guest_os_type": "debian_64",
+        "vmware_version": 16,
+        "headless": true,
+        "scripts": ["test.sh"]
+      }
+    }
+  }
+}

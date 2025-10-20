@@ -28,9 +28,45 @@ pipx install git+https://github.com/d-woosley/Kroltin.git
 
 ## Usage
 
+### Using Build Templates (Recommended)
+
+Kroltin supports build templates for simplified command invocation. Templates store common configuration parameters so you don't need to specify them on every run.
+
+**List available templates:**
+
+```bash
+kroltin-cli --list-templates
+# or
+kroltin-cli golden -lt
+```
+
+**Build using a template:**
+
+```bash
+kroltin-cli golden -t kali-latest --ssh-password kroltin
+```
+
+**Configure using a template:**
+
+```bash
+kroltin-cli configure -t kali-tailscale --ssh-password kroltin --tailscale-key tskey-abc123
+```
+
+Templates can include any command-line argument. You can override template values or provide missing required parameters (like `--ssh-password` and `--tailscale-key`) at runtime.
+
+See [TEMPLATES.md](TEMPLATES.md) for detailed template documentation and how to create custom templates.
+
 ### Building a Golden Image
 
 It's recommended to build a golden image first. Golden images can be reused for faster configuration runs later.
+
+**Using a template:**
+
+```bash
+kroltin-cli golden -t kali-latest --ssh-password kroltin
+```
+
+**Using full command-line arguments:**
 
 ```bash
 kroltin golden \
@@ -47,13 +83,21 @@ kroltin golden \
   --ssh-username kali
 ```
 
-If no `--ssh-password` is provided, you will be prompted to enter one. **Do not supply passwords inline in the command.**
+If no `--ssh-password` is provided, you will be prompted to enter one.
 
 > ℹ️ Password changes during configuration builds are not yet supported.
 
 ### Configuring an Existing VM
 
 Configuration builds are final products and cannot be saved back to the kroltin installation folder. They are exported to a specified path.
+
+**Using a template:**
+
+```bash
+kroltin-cli configure -t kali-tailscale --ssh-password kroltin --tailscale-key tskey-abc123
+```
+
+**Using full command-line arguments:**
 
 ```bash
 kroltin configure \
@@ -96,7 +140,8 @@ Kroltin supports dynamic variable substitution in preseed files and bash scripts
 | Variable | CLI Argument | Description |
 |----------|--------------|-------------|
 | `{{USERNAME}}` | `--ssh-username` | SSH username (default: `kroltin`) |
-| `{{PASSWORD_CRYPT}}` | `--ssh-password` | SHA-512 crypt hash of the SSH password |
+| `{{PASSWORD_CRYPT}}` | `--ssh-password` | SSH password |
+| `{{PASSWORD_CRYPT}}` | `--ssh-password` | SHA-512 crypt hash of the SSH password in unix `/etc/shadow` format |
 | `{{HOSTNAME}}` | `--hostname` | Hostname (default: uses `--vm-name`) |
 | `{{TAILSCALE_KEY}}` | `--tailscale-key` | Tailscale authentication key for automatic network setup |
 
@@ -158,6 +203,14 @@ kroltin settings --list-all
 
 > ℹ️ These commands are equivalent.
 
+List available build templates:
+
+```bash
+kroltin --list-templates
+# or
+kroltin-cli -lt
+```
+
 Add custom resources:
 
 ```bash
@@ -200,6 +253,7 @@ kroltin --debug --log golden ...
 | `-l, --log` | Enable logging to file |
 | `-lf, --log-file <PATH>` | Log file path (default: `kroltin.log`) |
 | `-ls` | List all resources |
+| `-lt, --list-templates` | List all available build templates |
 
 ### Golden Command
 
@@ -207,7 +261,11 @@ kroltin --debug --log golden ...
 kroltin golden [OPTIONS]
 ```
 
-**Required:**
+**Template Options:**
+- `-t, --template <NAME>`: Use a predefined build template
+- `-lt, --list-templates`: List all available templates
+
+**Required (if not using template):**
 - `--vm-type <TYPE>`: Platform type (`vmware`, `virtualbox`, `all`)
 - `--packer-template <PATH>`: Packer template file
 - `--iso <URL/PATH>`: ISO file(s) (can specify multiple)
@@ -239,7 +297,11 @@ kroltin golden [OPTIONS]
 kroltin configure [OPTIONS]
 ```
 
-**Required:**
+**Template Options:**
+- `-t, --template <NAME>`: Use a predefined build template
+- `-lt, --list-templates`: List all available templates
+
+**Required (if not using template):**
 - `--vm-type <TYPE>`: Platform type (`vmware`, `virtualbox`, `all`)
 - `--packer-template <PATH>`: Packer template file
 - `--vm-file <PATH>`: Source VM file or name
@@ -262,10 +324,10 @@ kroltin configure [OPTIONS]
 
 ## Recommendations
 
+- **Use templates** for common build configurations to simplify command invocation
 - Build golden images once and reuse them for faster configuration runs
 - Use the `--scripts` flag to customize VMs with your own provisioning scripts
-- Keep ISO files local when possible for faster builds
-- Use `--random-password` for temporary VMs; store passwords securely for production use
+- Use `--random-password` for temporary VMs
 
 ## Troubleshooting
 
@@ -295,7 +357,6 @@ The following features are planned:
 - **Local ISO runs**: Testing and validation of local ISO builds
 - **Cloud upload and sharing**: Automatic uploads to cloud storage with one-time download links, emailed to primary and CC'd contacts
 - **Password change during configuration**: Allow password updates in configuration builds
-- **Bundles**: Preconfigured flag sets for common VM types to simplify command invocation
 
 ## Project Structure
 
@@ -308,7 +369,9 @@ Kroltin/
 │   ├── packer.py            # Packer integration
 │   ├── run.py               # Entry points
 │   ├── settings.py          # Settings management
+│   ├── template_manager.py  # Build template management
 │   ├── threaded_cmd.py      # Command execution
+│   ├── templates.json       # Build template definitions
 │   ├── golden_images/       # Stored golden images
 │   ├── packer_templates/    # Packer HCL templates
 │   ├── preseed-files/       # Preseed/kickstart files
@@ -316,7 +379,8 @@ Kroltin/
 ├── pyproject.toml           # Package configuration
 ├── install.sh               # Installation script
 ├── LICENSE.txt
-└── README.md
+├── README.md
+└── TEMPLATES.md             # Template system documentation
 ```
 
 ## License

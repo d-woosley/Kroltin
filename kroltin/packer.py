@@ -1,4 +1,5 @@
 from kroltin.threaded_cmd import CommandRunner
+from kroltin.template_manager import TemplateManager
 import logging
 import os
 from os import path, remove
@@ -17,6 +18,7 @@ class Packer:
         self.logger = logging.getLogger(__name__)
         self.timestamp = time.strftime('%Y%m%d_%H%M%S')
         self.cmd_runner = CommandRunner()
+        self.template_manager = TemplateManager()
 
         # Directories within the installed package
         self.scripts_dir = str(resources.files('kroltin').joinpath('scripts'))
@@ -40,29 +42,75 @@ class Packer:
 
     def golden(
         self,
-        packer_template: str,
-        vm_name: str,
-        vm_type: str,
-        isos: list,
-        cpus: int,
-        memory: int,
-        disk_size: int,
-        ssh_username: str,
-        ssh_password: str,
-        hostname: str,
-        iso_checksum: str,
-        scripts: list,
-        preseed_file: str,
-        headless: bool,
-        guest_os_type: str,
-        vmware_version: int,
+        template: str = None,
+        packer_template: str = None,
+        vm_name: str = None,
+        vm_type: str = None,
+        isos: list = None,
+        cpus: int = None,
+        memory: int = None,
+        disk_size: int = None,
+        ssh_username: str = None,
+        ssh_password: str = None,
+        hostname: str = None,
+        iso_checksum: str = None,
+        scripts: list = None,
+        preseed_file: str = None,
+        headless: bool = True,
+        guest_os_type: str = None,
+        vmware_version: int = None,
         random_password: bool = False,
         tailscale_key: str = None,
     ) -> bool:
         """Build the VM image (golden image) using HashiCorp Packer CLI.
 
         This maps the Packer variables expected by an ISO-based template.
+        Can accept either explicit parameters or a template name.
         """
+        # If template is provided, load and merge configuration
+        if template:
+            template_config = self._load_template_config(template, 'golden')
+            if not template_config:
+                return False
+            
+            # Merge template config with provided args (provided args take precedence)
+            packer_template = packer_template or template_config.get('packer_template')
+            vm_name = vm_name or template_config.get('vm_name',)
+            vm_type = vm_type or template_config.get('vm_type')
+            isos = isos or template_config.get('iso')
+            cpus = cpus or template_config.get('cpus')
+            memory = memory or template_config.get('memory')
+            disk_size = disk_size or template_config.get('disk_size')
+            iso_checksum = iso_checksum or template_config.get('iso_checksum')
+            preseed_file = preseed_file or template_config.get('preseed_file')
+            scripts = scripts or template_config.get('scripts')
+            headless = headless if headless is not None else template_config.get('headless')
+            guest_os_type = guest_os_type or template_config.get('guest_os_type')
+            vmware_version = vmware_version or template_config.get('vmware_version')
+            
+            self.logger.info(f"Running golden build from template: {template}")
+        
+        # Validate all required parameters are present
+        if not self._validate_golden_params(
+            packer_template=packer_template,
+            vm_name=vm_name,
+            vm_type=vm_type,
+            isos=isos,
+            cpus=cpus,
+            memory=memory,
+            disk_size=disk_size,
+            ssh_username=ssh_username,
+            ssh_password=ssh_password,
+            hostname=hostname,
+            iso_checksum=iso_checksum,
+            scripts=scripts,
+            preseed_file=preseed_file,
+            headless=headless,
+            guest_os_type=guest_os_type,
+            vmware_version=vmware_version
+        ):
+            return False
+        
         self.logger.debug(
             "Starting golden build with ISOs: %s, vm_name: %s, vm_type: %s, cpus: %s, "
             "memory: %s, disk_size: %s, ssh_username %s, build_script: %s, "
@@ -71,9 +119,9 @@ class Packer:
             ssh_username, str(scripts), iso_checksum, preseed_file
         )
 
-        resolved_template = self._resolve_packer_template(packer_template)
-        if not self.init_template(resolved_template):
-            self.logger.error(f"Packer init failed for template: {resolved_template}")
+        resolved_packer_template = self._resolve_packer_template(packer_template)
+        if not self.init_template(resolved_packer_template):
+            self.logger.error(f"Packer init failed for template: {resolved_packer_template}")
             return False
 
         self._fill_pressed(
@@ -117,7 +165,7 @@ class Packer:
             f"source_vmx_path={self._source_vmx_path(vm_name)}"
         ]
 
-        cmd = self._build_packer_cmd(packer_varables, resolved_template)
+        cmd = self._build_packer_cmd(packer_varables, resolved_packer_template)
 
         if self._run_packer(cmd):
             self._build_cleanup(vm_name=vm_name, ssh_password=ssh_password, random_password_used=random_password)
@@ -128,30 +176,68 @@ class Packer:
 
     def configure(
         self,
-        packer_template: str,
-        vm_name: str,
-        vm_type: str,
-        vm_file: str,
-        ssh_username: str,
-        ssh_password: str,
-        hostname: str,
-        scripts: list,
-        export_path: str,
-        headless: bool,
-        export_file_type: str,
+        template: str = None,
+        packer_template: str = None,
+        vm_name: str = None,
+        vm_type: str = None,
+        vm_file: str = None,
+        ssh_username: str = None,
+        ssh_password: str = None,
+        hostname: str = None,
+        scripts: list = None,
+        export_path: str = None,
+        headless: bool = True,
+        export_file_type: str = None,
         random_password: bool = False,
         tailscale_key: str = None,
     ) -> bool:
-        """Configure an existing VM golden image using Packer."""
+        """Configure an existing VM golden image using Packer.
+        
+        Can accept either explicit parameters or a template name.
+        """
+        # If template is provided, load and merge configuration
+        if template:
+            template_config = self._load_template_config(template, 'configure')
+            if not template_config:
+                return False
+            
+            # Merge template config with provided args (provided args take precedence)
+            packer_template = packer_template or template_config.get('packer_template')
+            vm_name = vm_name or template_config.get('vm_name', f"kroltin-{template}")
+            vm_type = vm_type or template_config.get('vm_type', 'vmware')
+            vm_file = vm_file or template_config.get('vm_file')
+            scripts = scripts or template_config.get('scripts', [])
+            export_path = export_path or template_config.get('export_path', f"kroltin_configured_{template}")
+            headless = headless if headless is not None else template_config.get('headless', True)
+            export_file_type = export_file_type or template_config.get('export_file_type', 'ova')
+            
+            self.logger.info(f"Running configure from template: {template}")
+        
+        # Validate all required parameters are present
+        if not self._validate_configure_params(
+            packer_template=packer_template,
+            vm_name=vm_name,
+            vm_type=vm_type,
+            vm_file=vm_file,
+            ssh_username=ssh_username,
+            ssh_password=ssh_password,
+            hostname=hostname,
+            scripts=scripts,
+            export_path=export_path,
+            headless=headless,
+            export_file_type=export_file_type
+        ):
+            return False
+        
         self.logger.debug(
             "Starting VM configure: %s, vm_name: %s, vm_type: %s, scripts: %s, "
             "export_path: %s",
             vm_file, vm_name, vm_type, str(scripts), export_path
         )
 
-        resolved_template = self._resolve_packer_template(packer_template)
-        if not self.init_template(resolved_template):
-            self.logger.error(f"Packer init failed for template: {resolved_template}")
+        resolved_packer_template = self._resolve_packer_template(packer_template)
+        if not self.init_template(resolved_packer_template):
+            self.logger.error(f"Packer init failed for template: {resolved_packer_template}")
             return False
 
         # Resolve and check scripts for template variables
@@ -178,7 +264,7 @@ class Packer:
             f"source_vmx_path={self._source_vmx_path(vm_name)}"
         ]
         
-        cmd = self._build_packer_cmd(packer_varables, resolved_template)
+        cmd = self._build_packer_cmd(packer_varables, resolved_packer_template)
 
         if self._run_packer(cmd):
             self._build_cleanup(vm_name=vm_name, ssh_password=ssh_password, random_password_used=random_password)
@@ -461,6 +547,105 @@ class Packer:
             return self._run_packer(cmd)
         return True
     
+    def _load_template_config(self, template_name: str, expected_type: str) -> dict:
+        """Load and validate a build template configuration.
+        
+        Args:
+            template_name: Name of the template to load
+            expected_type: Expected template type ('golden' or 'configure')
+            
+        Returns:
+            Template configuration dict, or None if template invalid/not found
+        """
+        template = self.template_manager.get_template(template_name)
+        
+        if not template:
+            self.logger.error(f"Template '{template_name}' not found")
+            return None
+        
+        # Verify template type
+        template_type = template.get('type')
+        if template_type != expected_type:
+            self.logger.error(
+                f"Template '{template_name}' is type '{template_type}' but expected '{expected_type}'"
+            )
+            return None
+        
+        # Log template info
+        description = template.get('description', 'No description available')
+        self.logger.info(f"Using template '{template_name}': {description}")
+        
+        return template.get('config', {})
+    
+    def _validate_golden_params(self, **kwargs) -> bool:
+        """Validate that all required parameters for golden build are present.
+        
+        Returns:
+            True if all required params present, False otherwise
+        """
+        required_params = {
+            'packer_template': 'Packer template file',
+            'vm_name': 'VM name',
+            'vm_type': 'VM type (vmware, virtualbox, hyperv, all)',
+            'isos': 'ISO file(s)',
+            'cpus': 'Number of CPUs',
+            'memory': 'Memory in MB',
+            'disk_size': 'Disk size in MB',
+            'ssh_username': 'SSH username',
+            'ssh_password': 'SSH password',
+            'hostname': 'Hostname',
+            'iso_checksum': 'ISO checksum',
+            'preseed_file': 'Preseed file',
+            'guest_os_type': 'Guest OS type',
+            'vmware_version': 'VMware hardware version',
+        }
+        
+        missing = []
+        for param, description in required_params.items():
+            if kwargs.get(param) is None:
+                missing.append(f"{param} ({description})")
+        
+        if missing:
+            self.logger.error("Missing required parameters for golden build:")
+            for m in missing:
+                self.logger.error(f"  - {m}")
+            self.logger.error("Please provide these via CLI arguments or in your template.")
+            return False
+        
+        return True
+    
+    def _validate_configure_params(self, **kwargs) -> bool:
+        """Validate that all required parameters for configure build are present.
+        
+        Returns:
+            True if all required params present, False otherwise
+        """
+        required_params = {
+            'packer_template': 'Packer template file',
+            'vm_name': 'VM name',
+            'vm_type': 'VM type (vmware, virtualbox, hyperv, all)',
+            'vm_file': 'VM file to configure',
+            'ssh_username': 'SSH username',
+            'ssh_password': 'SSH password',
+            'hostname': 'Hostname',
+            'export_path': 'Export path for configured VM',
+            'export_file_type': 'Export file type (ova, ovf, vmx)',
+        }
+        
+        missing = []
+        for param, description in required_params.items():
+            if kwargs.get(param) is None:
+                missing.append(f"{param} ({description})")
+        
+        if missing:
+            self.logger.error("Missing required parameters for configure build:")
+            for m in missing:
+                self.logger.error(f"  - {m}")
+            self.logger.error("Please provide these via CLI arguments or in your template.")
+            return False
+        
+        return True
+    
     # ----------------------------------------------------------------------
     # Preseed File Handling
     # ----------------------------------------------------------------------
@@ -497,6 +682,7 @@ class Packer:
             'ssh_username': '{{USERNAME}}',
             'hostname': '{{HOSTNAME}}',
             'tailscale_key': '{{TAILSCALE_KEY}}',
+            'ssh_password': '{{PASSWORD}}',
         }
         
         # Build the template variable map
