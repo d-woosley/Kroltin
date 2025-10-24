@@ -423,7 +423,7 @@ class Packer:
 
             # If a random password was used, print it to stdout (not in logs)
             if self.random_password:
-                print(f"  ######## Random SSH password for '{vm_name}': {ssh_password} ########")
+                print(f"  ######## Random SSH password for '{vm_name}': {self.random_password} ########")
         except Exception:
             self.logger.debug("_build_cleanup encountered an unexpected error, continuing.")
 
