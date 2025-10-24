@@ -32,7 +32,7 @@
         "export_path": "kali-tailscale",
         "export_file_type": "ova",
         "headless": true,
-        "scripts": ["install-tailscale.sh", "download-nessus.sh", "randomize-password.sh"]
+        "scripts": ["change-hostname.sh", "install-tailscale.sh", "download-nessus.sh", "randomize-password.sh"]
       }
     },
     "vmware-test": {
