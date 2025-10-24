@@ -40,7 +40,7 @@ source "virtualbox-ovf" "vm" {
   vboxmanage           = [["modifyvm","{{ .Name }}","--vram","64"]]
   keep_registered      = true
   output_directory     = "${var.build_path}"
-  shutdown_command     = "echo '${var.ssh_password}' | sudo -S shutdown -P now"
+  shutdown_command     = "sudo shutdown -P now"
 }
 
 source "vmware-vmx" "vm" {
@@ -52,17 +52,32 @@ source "vmware-vmx" "vm" {
   headless         = var.headless
   ssh_timeout      = "10m"
   output_directory = "${var.build_path}"
-  shutdown_command = "echo '${var.ssh_password}' | sudo -S shutdown -P now"
+  shutdown_command = "sudo shutdown -P now"
 }
 
 build {
   sources = var.vm_type
+
+  # Grant temporary NOPASSWD sudo for shutdown to handle password changes during provisioning
+  provisioner "shell" {
+    inline = [
+      "echo '${var.ssh_password}' | sudo -S sh -c 'echo \"${var.ssh_username} ALL=(ALL) NOPASSWD: /sbin/shutdown\" >> /etc/sudoers.d/packer-shutdown'",
+      "echo '${var.ssh_password}' | sudo -S chmod 0440 /etc/sudoers.d/packer-shutdown"
+    ]
+  }
 
   provisioner "shell" {
     environment_vars = ["HOME_DIR=/home/${var.ssh_username}"]
     execute_command   = "echo '${var.ssh_password}' | {{ .Vars }} sudo -S -E sh -eux '{{ .Path }}'"
     scripts           = var.scripts
     expect_disconnect = true
+  }
+
+  # Clean up the temporary sudoers file (optional, for security)
+  provisioner "shell" {
+    inline = [
+      "sudo rm -f /etc/sudoers.d/packer-shutdown || true"
+    ]
   }
 
   post-processors {
