@@ -11,6 +11,8 @@ import shutil
 import hashlib
 import crypt
 import re
+import secrets
+import string
 
 
 class Packer:
@@ -26,7 +28,8 @@ class Packer:
         self.preseed_dir = str(resources.files('kroltin').joinpath('preseed-files'))
         self.temp_dir = tempfile.gettempdir()
         self.templates_build_dir = path.join(self.temp_dir, f"kroltin-templates_{self.timestamp}")
-        # Keep http_directory as alias for preseed files served over HTTP
+        
+        self.random_password = None
         self.http_directory = self.templates_build_dir
 
         # Log resoved paths
@@ -67,6 +70,12 @@ class Packer:
         This maps the Packer variables expected by an ISO-based template.
         Can accept either explicit parameters or a template name.
         """
+        # Handle random password (takes priority over ssh_password)
+        if random_password:
+            self.random_password = self._generate_random_password()
+            ssh_password = self.random_password
+            self.logger.info(f"Using random password for SSH (generated)")
+
         # If template is provided, load and merge configuration
         if template:
             template_config = self._load_template_config(template, 'golden')
@@ -75,7 +84,7 @@ class Packer:
             
             # Merge template config with provided args (provided args take precedence)
             packer_template = packer_template or template_config.get('packer_template')
-            vm_name = vm_name or template_config.get('vm_name',)
+            vm_name = vm_name or template_config.get('vm_name')
             vm_type = vm_type or template_config.get('vm_type')
             isos = isos or template_config.get('iso')
             cpus = cpus or template_config.get('cpus')
@@ -89,6 +98,26 @@ class Packer:
             vmware_version = vmware_version or template_config.get('vmware_version')
             
             self.logger.info(f"Running golden build from template: {template}")
+        
+        # Apply fallback defaults for any values still None (when neither CLI nor template provided them)
+        if vm_name is None:
+            vm_name = time.strftime('kroltin-%Y%m%d_%H%M%S')
+        if cpus is None:
+            cpus = 2
+        if memory is None:
+            memory = 4096
+        if disk_size is None:
+            disk_size = 81920
+        if scripts is None:
+            scripts = []
+        if guest_os_type is None:
+            guest_os_type = "debian_64"
+        if vmware_version is None:
+            vmware_version = 16
+        
+        # Set hostname to vm_name if not provided
+        if hostname is None:
+            hostname = vm_name
         
         # Validate all required parameters are present
         if not self._validate_golden_params(
@@ -168,10 +197,10 @@ class Packer:
         cmd = self._build_packer_cmd(packer_varables, resolved_packer_template)
 
         if self._run_packer(cmd):
-            self._build_cleanup(vm_name=vm_name, ssh_password=ssh_password, random_password_used=random_password)
+            self._build_cleanup(vm_name=vm_name, ssh_password=ssh_password)
             return True
         else:
-            self._build_cleanup(vm_name=vm_name, ssh_password=ssh_password, random_password_used=random_password)
+            self._build_cleanup(vm_name=vm_name, ssh_password=ssh_password)
             return False
 
     def configure(
@@ -195,6 +224,12 @@ class Packer:
         
         Can accept either explicit parameters or a template name.
         """
+        # Handle random password (takes priority over ssh_password)
+        if random_password:
+            self.random_password = self._generate_random_password()
+            ssh_password = self.random_password
+            self.logger.info(f"Using random password for SSH")
+
         # If template is provided, load and merge configuration
         if template:
             template_config = self._load_template_config(template, 'configure')
@@ -203,15 +238,33 @@ class Packer:
             
             # Merge template config with provided args (provided args take precedence)
             packer_template = packer_template or template_config.get('packer_template')
-            vm_name = vm_name or template_config.get('vm_name', f"kroltin-{template}")
-            vm_type = vm_type or template_config.get('vm_type', 'vmware')
+            vm_name = vm_name or template_config.get('vm_name')
+            vm_type = vm_type or template_config.get('vm_type')
             vm_file = vm_file or template_config.get('vm_file')
-            scripts = scripts or template_config.get('scripts', [])
-            export_path = export_path or template_config.get('export_path', f"kroltin_configured_{template}")
-            headless = headless if headless is not None else template_config.get('headless', True)
-            export_file_type = export_file_type or template_config.get('export_file_type', 'ova')
+            scripts = scripts or template_config.get('scripts')
+            export_path = export_path or template_config.get('export_path')
+            headless = headless if headless is not None else template_config.get('headless')
+            export_file_type = export_file_type or template_config.get('export_file_type')
             
             self.logger.info(f"Running configure from template: {template}")
+        
+        # Apply fallback defaults for any values still None (when neither CLI nor template provided them)
+        if vm_name is None:
+            vm_name = time.strftime('kroltin-%Y%m%d_%H%M%S')
+        if vm_type is None:
+            vm_type = 'vmware'
+        if scripts is None:
+            scripts = []
+        if export_path is None:
+            export_path = f"kroltin_configured_vm_{self.timestamp}"
+        if headless is None:
+            headless = True
+        if export_file_type is None:
+            export_file_type = 'ova'
+        
+        # Set hostname to vm_name if not provided
+        if hostname is None:
+            hostname = vm_name
         
         # Validate all required parameters are present
         if not self._validate_configure_params(
@@ -267,10 +320,10 @@ class Packer:
         cmd = self._build_packer_cmd(packer_varables, resolved_packer_template)
 
         if self._run_packer(cmd):
-            self._build_cleanup(vm_name=vm_name, ssh_password=ssh_password, random_password_used=random_password)
+            self._build_cleanup(vm_name=vm_name, ssh_password=ssh_password)
             return True
         else:
-            self._build_cleanup(vm_name=vm_name, ssh_password=ssh_password, random_password_used=random_password)
+            self._build_cleanup(vm_name=vm_name, ssh_password=ssh_password)
             return False
     
     # ----------------------------------------------------------------------
@@ -343,7 +396,7 @@ class Packer:
         
         return hash_func.hexdigest()
 
-    def _build_cleanup(self, vm_name: str, ssh_password: str = None, random_password_used: bool = False):
+    def _build_cleanup(self, vm_name: str, ssh_password: str = None):
         """Centralized cleanup for golden/configure flows.
 
         Removes the filled preseed, filled scripts, and temporary build path. 
@@ -369,7 +422,7 @@ class Packer:
                 self.logger.error(f"Error removing build path: {e}")
 
             # If a random password was used, print it to stdout (not in logs)
-            if random_password_used and ssh_password:
+            if self.random_password:
                 print(f"  ######## Random SSH password for '{vm_name}': {ssh_password} ########")
         except Exception:
             self.logger.debug("_build_cleanup encountered an unexpected error, continuing.")
@@ -698,6 +751,13 @@ class Packer:
             password_crypt = self._generate_sha512_crypt(kwargs['ssh_password'])
             template_map['{{PASSWORD_CRYPT}}'] = password_crypt
         
+        # Handle special case: RANDOM_PASSWORD
+        if kwargs.get('random_password_needed', False):
+            if self.random_password is None:
+                self.random_password = self._generate_random_password()
+                self.logger.info(f"Generated random password for template variable {{{{RANDOM_PASSWORD}}}}")
+            template_map['{{RANDOM_PASSWORD}}'] = self.random_password
+        
         return template_map
 
     def _find_template_variables_in_file(self, file_path: str) -> set:
@@ -746,6 +806,10 @@ class Packer:
                 # No variables found, use original script
                 filled_scripts.append(script_path)
                 continue
+            
+            # Check if {{RANDOM_PASSWORD}} is in the script and set flag if needed
+            if '{{RANDOM_PASSWORD}}' in found_vars:
+                kwargs['random_password_needed'] = True
             
             # Check which variables we can fill
             available_map = self._map_template_variables(**kwargs)
@@ -863,3 +927,16 @@ class Packer:
         except Exception as e:
             self.logger.error(f"Failed to generate SHA-512 crypt hash via crypt module: {e}")
             raise
+    
+    def _generate_random_password(self, length: int = 16) -> str:
+        """Generate a random password using secure random generation.
+        
+        Args:
+            length: Length of the password to generate (default: 16)
+            
+        Returns:
+            A random password string containing letters, digits, and special characters
+        """
+        alphabet = string.ascii_letters + string.digits + "!@#$%^&*()-_=+[]{}|;:,.<>?"
+        password = ''.join(secrets.choice(alphabet) for _ in range(length))
+        return password

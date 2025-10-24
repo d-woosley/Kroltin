@@ -85,6 +85,22 @@ kroltin golden \
 
 If no `--ssh-password` is provided, you will be prompted to enter one.
 
+**Using a random password:**
+
+For temporary VMs or testing, you can use the `--random-password` flag to generate a secure random password automatically:
+
+```bash
+kroltin golden -t kali-latest --random-password
+```
+
+The randomly generated password will be printed at the end of the build, after cleanup completes. This ensures the password is not lost in the build output. Example output:
+
+```
+  ######## Random SSH password for 'kali-base-2024': aB3$xY9!mN7@pQ2& ########
+```
+
+> ℹ️ The `--random-password` flag takes priority over `--ssh-password`. If both are provided, the random password will be used.
+
 > ℹ️ Password changes during configuration builds are not yet supported.
 
 ### Configuring an Existing VM
@@ -140,8 +156,9 @@ Kroltin supports dynamic variable substitution in preseed files and bash scripts
 | Variable | CLI Argument | Description |
 |----------|--------------|-------------|
 | `{{USERNAME}}` | `--ssh-username` | SSH username (default: `kroltin`) |
-| `{{PASSWORD_CRYPT}}` | `--ssh-password` | SSH password |
+| `{{PASSWORD}}` | `--ssh-password` | SSH password in plaintext |
 | `{{PASSWORD_CRYPT}}` | `--ssh-password` | SHA-512 crypt hash of the SSH password in unix `/etc/shadow` format |
+| `{{RANDOM_PASSWORD}}` | Auto-generated | Randomly generated 16-character password (auto-generated when found in scripts) |
 | `{{HOSTNAME}}` | `--hostname` | Hostname (default: uses `--vm-name`) |
 | `{{TAILSCALE_KEY}}` | `--tailscale-key` | Tailscale authentication key for automatic network setup |
 
@@ -166,6 +183,18 @@ echo "{{USERNAME}}:{{PASSWORD_CRYPT}}" | chpasswd -e
 # Install and configure Tailscale
 curl -fsSL https://tailscale.com/install.sh | sh
 tailscale up --authkey={{TAILSCALE_KEY}} --hostname={{HOSTNAME}}
+```
+
+**Using `{{RANDOM_PASSWORD}}` in scripts:**
+
+When `{{RANDOM_PASSWORD}}` is detected in any script, Kroltin automatically generates a secure 16-character random password and substitutes it into the script. The generated password is printed at the end of the build for your reference.
+
+```bash
+#!/bin/bash
+# Create a temporary admin user with random password
+useradd -m -s /bin/bash tempadmin
+echo "tempadmin:{{RANDOM_PASSWORD}}" | chpasswd
+echo "Temporary admin user created with random password"
 ```
 
 Variables are automatically detected and filled before script execution. If a script contains variables not provided via CLI, you will be prompted to proceed.
@@ -283,7 +312,7 @@ kroltin golden [OPTIONS]
 **Template Variables:**
 - `--ssh-username <USER>`: SSH username (default: `kroltin`)
 - `--ssh-password <PASS>`: SSH password (prompted if omitted)
-- `-rp, --random-password`: Generate random 30-character password
+- `-rp, --random-password`: Generate a secure random 16-character password (takes priority over `--ssh-password`; printed at end of build)
 - `--hostname <NAME>`: Hostname (default: uses `--vm-name`)
 - `--tailscale-key <KEY>`: Tailscale authentication key for automatic network setup
 
@@ -314,7 +343,7 @@ kroltin configure [OPTIONS]
 **Template Variables:**
 - `--ssh-username <USER>`: SSH username (default: `kroltin`)
 - `--ssh-password <PASS>`: SSH password (prompted if omitted)
-- `-rp, --random-password`: Generate random 30-character password
+- `-rp, --random-password`: Generate a secure random 16-character password (takes priority over `--ssh-password`; printed at end of build)
 - `--hostname <NAME>`: Hostname (default: uses `--vm-name`)
 - `--tailscale-key <KEY>`: Tailscale authentication key for automatic network setup
 

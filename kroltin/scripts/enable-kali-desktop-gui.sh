@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 
 apt-get install -y kali-desktop-gnome gdm3 xorg open-vm-tools-desktop dbus-x11

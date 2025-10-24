@@ -21,6 +21,6 @@ LATEST_NESSUS_FILE="$(
     | first.file'
 )"
 
-curl -fSL \
+curl -fsSL \
   -o "${DOWNLOAD_DIR}/${LATEST_NESSUS_FILE}" \
   "https://www.tenable.com/downloads/api/v2/pages/nessus/files/${LATEST_NESSUS_FILE}"
