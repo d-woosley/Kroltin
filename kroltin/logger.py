@@ -12,7 +12,7 @@ RESET = "\033[0m"
 class ScreenFormatter(logging.Formatter):
     def __init__(self, fmt, datefmt=None):
         super().__init__(fmt, datefmt)
-        self.positive_msgs = ["created", "exported", "removed", "successful"]
+        self.positive_msgs = ["exported", "removed", "successful"]
 
     def format(self, record):
         if "ssh_password" in record.msg:

@@ -1,7 +1,5 @@
 import time
 import os
-import secrets
-import string
 from getpass import getpass
 from argparse import ArgumentParser
 import logging
@@ -313,31 +311,31 @@ class ArgsValidator:
         golden_parser.add_argument(
             "--vm-name",
             dest="vm_name",
-            help="Virtual machine name (Default: kroltin-$DATE)",
+            help="Virtual machine name (Default: kroltin-TIMESTAMP if not using template)",
             type=str,
-            default=time.strftime('kroltin-%Y%m%d_%H%M%S')
+            default=None
         )
         golden_parser.add_argument(
             "--cpus",
             dest="cpus",
-            help="Number of CPUs for the VM (default: 2)",
+            help="Number of CPUs for the VM (default: 2 if not using template)",
             type=int,
-            default=2
+            default=None
         )
         golden_parser.add_argument(
             "--memory",
             dest="memory",
-            help="Memory (MB) for the VM (default: 4096)",
+            help="Memory (MB) for the VM (default: 4096 if not using template)",
             type=int,
-            default=4096
+            default=None
         )
         golden_parser.add_argument(
             "--disk-size",
             "-ds",
             dest="disk_size",
-            help="Disk size (MB) for the VM (default: 81920)",
+            help="Disk size (MB) for the VM (default: 81920 if not using template)",
             type=int,
-            default=81920
+            default=None
         )
         golden_parser.add_argument(
             "--iso-checksum",
@@ -351,7 +349,7 @@ class ArgsValidator:
             dest="scripts",
             nargs='*',
             help="Optional list of scripts to run (script name from scripts dir or path; space separated)",
-            default=[]
+            default=None
         )
         golden_parser.add_argument(
             "-pf",
@@ -370,16 +368,16 @@ class ArgsValidator:
         golden_parser.add_argument(
             "--guest-os-type",
             dest="guest_os_type",
-            help="Guest OS type for the VM (default: debian_64)",
+            help="Guest OS type for the VM (default: debian_64 if not using template)",
             type=str,
-            default="debian_64"
+            default=None
         )
         golden_parser.add_argument(
             "--vmware-version",
             dest="vmware_version",
-            help="VMware only: Virtual hardware version (default: 16)",
+            help="VMware only: Virtual hardware version (default: 16 if not using template)",
             type=int,
-            default=16
+            default=None
         )
 
     def _add_configure_subparser(self, subparsers, timestamp, template_vars_parser):
@@ -421,22 +419,22 @@ class ArgsValidator:
         configure_parser.add_argument(
             "--vm-name",
             dest="vm_name",
-            help="Virtual machine name (Default: kroltin-$DATE)",
+            help="Virtual machine name (Default: kroltin-TIMESTAMP if not using template)",
             type=str,
-            default=time.strftime('kroltin-%Y%m%d_%H%M%S')
+            default=None
         )
         configure_parser.add_argument(
             "--scripts",
             dest="scripts",
             nargs='*',
             help="Optional list of scripts to run (script name from installed scripts or path; space separated)",
-            default=[]
+            default=None
         )
         configure_parser.add_argument(
             "--export-path",
             dest="export_path",
-            default=f"kroltin_configured_vm_{timestamp}",
-            help="Optional export path for the configured VM (default: kroltin_configured_vm_TIMESTAMP)"
+            default=None,
+            help="Optional export path for the configured VM (default: kroltin_configured_vm_TIMESTAMP if not using template)"
         )
         configure_parser.add_argument(
             "--no-headless",
@@ -448,10 +446,10 @@ class ArgsValidator:
         configure_parser.add_argument(
             "--export-file-type",
             dest="export_file_type",
-            help="Export file type: ova, ovf, or vmx (vmx is VMware only)",
+            help="Export file type: ova, ovf, or vmx (vmx is VMware only; default: ova if not using template)",
             type=str,
             choices=["ova", "ovf", "vmx"],
-            default="ova"
+            default=None
         )
 
     # ----------------------------------------------------------------------
@@ -516,16 +514,8 @@ class ArgsValidator:
                     if not getattr(args, 'vm_file', None):
                         self.parser.error("--vm-file is required")
 
-            # Set hostname to vm_name if not provided
-            if not getattr(args, 'hostname', None):
-                args.hostname = getattr(args, 'vm_name', 'kroltin')
-
-            # If random password requested, generate and use it
-            if getattr(args, 'random_password', False):
-                alphabet = string.ascii_letters + string.digits + string.punctuation
-                args.ssh_password = ''.join(secrets.choice(alphabet) for _ in range(30))
-            else:
-                # Prompt for ssh password if missing
+            # Prompt for ssh password if missing and not using random password
+            if not getattr(args, 'random_password', False):
                 if not getattr(args, 'ssh_password', None):
                     try:
                         args.ssh_password = getpass(prompt='SSH password: ')
