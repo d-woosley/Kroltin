@@ -314,7 +314,7 @@ class Packer:
             f"build_path={self._build_path(vm_name)}",
             f"headless={'true' if headless else 'false'}",
             f"export_file_type={export_file_type}",
-            f"source_vmx_path={self._source_vmx_path(vm_name, vm_file)}"
+            f"source_vmx_path={self._source_vmx_path(vm_name)}"
         ]
         
         cmd = self._build_packer_cmd(packer_varables, resolved_packer_template)
@@ -535,23 +535,9 @@ class Packer:
 
         return export_path
     
-    def _source_vmx_path(self, vm_name: str, vm_file: str = None) -> str:
-        """Return the full path to the VMX file for a given VM name.
-        
-        Args:
-            vm_name: The VM name used for the build
-            vm_file: Optional VM file name (used when importing a different VM)
-            
-        Returns:
-            Full path to the VMX file in the build directory
-        """
-        # If vm_file is provided and different from vm_name, use vm_file for the VMX filename
-        if vm_file and vm_file != vm_name:
-            vmx_filename = f"{vm_file}.vmx"
-        else:
-            vmx_filename = f"{vm_name}.vmx"
-            
-        return path.join(self._build_path(vm_name), vmx_filename)
+    def _source_vmx_path(self, vm_name: str) -> str:
+        """Return the source VMX path for a given VM name in the build path."""            
+        return path.join(self._build_path(vm_name), f"{vm_name}.vmx")
 
     def _remove_build_path(self, vm_name: str):
         """Remove the temporary build path if it exists."""
