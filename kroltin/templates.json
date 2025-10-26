@@ -30,7 +30,7 @@
         "vm_file": "kali-latest-base",
         "vm_name": "kali-tailscale",
         "export_path": "kali-tailscale",
-        "export_file_type": "ova",
+        "export_file_type": "vmx",
         "headless": true,
         "scripts": ["change-hostname.sh", "install-tailscale.sh", "download-nessus.sh", "randomize-password.sh"]
       }
