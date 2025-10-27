@@ -44,35 +44,97 @@ choco install packer
 1. Download the Windows binary from [packer.io/downloads](https://www.packer.io/downloads)
 2. Extract the executable to a directory (e.g., `C:\packer\`)
 3. Add the directory to your PATH:
-   - Search for "Environment Variables" in Windows
-   - Edit "Path" under System Variables
-   - Add the directory containing `packer.exe`
+
+   **Using PowerShell (as Administrator):**
+   ```powershell
+   # For current user only
+   [Environment]::SetEnvironmentVariable("Path", $env:Path + ";C:\packer", "User")
+   
+   # OR for all users (requires admin)
+   [Environment]::SetEnvironmentVariable("Path", $env:Path + ";C:\packer", "Machine")
+   ```
+   
+   **Using GUI:**
+   - Search for "Environment Variables" in Windows Start menu
+   - Click "Edit the system environment variables"
+   - Click "Environment Variables..." button
+   - Under "System variables" (or "User variables"), find and select "Path"
+   - Click "Edit..."
+   - Click "New"
+   - Add the directory containing `packer.exe` (e.g., `C:\packer\`)
+   - Click "OK" on all dialogs
+   
+   **Close and reopen your terminal** for changes to take effect.
    
 Verify installation:
 ```cmd
 packer version
 ```
 
+> ⚠️ **Note:** If `packer version` doesn't work after manual installation, you may need to manually add Packer to your PATH using one of the methods above.
+
 ### 4. Install a Virtualization Platform
 
 **Option A: VMware Workstation**
 
 1. Download and install [VMware Workstation Pro](https://www.vmware.com/products/workstation-pro.html)
-2. The CLI tools (`vmrun`, `ovftool`) are automatically added to PATH during installation
+2. The CLI tools (`vmrun`, `ovftool`) should be automatically added to PATH during installation
 3. Verify installation:
    ```cmd
    vmrun
    ovftool
    ```
 
+> ⚠️ **Note:** If `vmrun` or `ovftool` commands are not recognized:
+> 
+> **Using PowerShell (as Administrator):**
+> ```powershell
+> # Add VMware paths (adjust if your installation path differs)
+> $vmwarePath = "C:\Program Files (x86)\VMware\VMware Workstation"
+> $ovfToolPath = "C:\Program Files (x86)\VMware\VMware Workstation\OVFTool"
+> 
+> # For current user
+> [Environment]::SetEnvironmentVariable("Path", $env:Path + ";$vmwarePath;$ovfToolPath", "User")
+> 
+> # OR for all users (requires admin)
+> [Environment]::SetEnvironmentVariable("Path", $env:Path + ";$vmwarePath;$ovfToolPath", "Machine")
+> ```
+> 
+> **Using GUI:**
+> 1. Locate your VMware installation directory (typically `C:\Program Files (x86)\VMware\VMware Workstation\`)
+> 2. Add these paths to your system PATH using the Environment Variables steps from section 3:
+>    - `C:\Program Files (x86)\VMware\VMware Workstation\`
+>    - `C:\Program Files (x86)\VMware\VMware Workstation\OVFTool\`
+> 3. Close and reopen your terminal
+
 **Option B: VirtualBox**
 
 1. Download and install [VirtualBox](https://www.virtualbox.org/wiki/Downloads)
-2. The installer automatically adds `VBoxManage` to PATH
+2. The installer should automatically add `VBoxManage` to PATH
 3. Verify installation:
    ```cmd
    VBoxManage --version
    ```
+
+> ⚠️ **Note:** If `VBoxManage` command is not recognized:
+> 
+> **Using PowerShell (as Administrator):**
+> ```powershell
+> # Add VirtualBox path (adjust if your installation path differs)
+> $vboxPath = "C:\Program Files\Oracle\VirtualBox"
+> 
+> # For current user
+> [Environment]::SetEnvironmentVariable("Path", $env:Path + ";$vboxPath", "User")
+> 
+> # OR for all users (requires admin)
+> [Environment]::SetEnvironmentVariable("Path", $env:Path + ";$vboxPath", "Machine")
+> ```
+> 
+> **Using GUI:**
+> 1. Locate your VirtualBox installation directory (typically `C:\Program Files\Oracle\VirtualBox\`)
+> 2. Add this path to your system PATH using the Environment Variables steps from section 3:
+>    - `C:\Program Files\Oracle\VirtualBox\`
+> 3. Close and reopen your terminal
 
 ### 5. Install Kroltin
 
@@ -181,88 +243,6 @@ VBoxManage --version
 ```
 
 ### 4. Install Kroltin
-
-```bash
-pipx install git+https://github.com/d-woosley/Kroltin.git
-```
-
----
-
-## WSL (Windows Subsystem for Linux) Installation
-
-### 1. Set Up WSL
-
-If you haven't already installed WSL:
-```cmd
-wsl --install
-```
-
-Launch your WSL distribution (Ubuntu recommended).
-
-### 2. Install Python and pipx
-
-```bash
-sudo apt update
-sudo apt install python3 python3-pip pipx
-pipx ensurepath
-source ~/.bashrc
-```
-
-### 3. Install HashiCorp Packer
-
-```bash
-wget -O - https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(grep -oP '(?<=UBUNTU_CODENAME=).*' /etc/os-release || lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
-sudo apt update && sudo apt install packer
-```
-
-Verify installation:
-```bash
-packer version
-```
-
-### 4. Install a Virtualization Platform
-
-**Important:** Virtualization platforms must be installed on the **Windows host**, not inside WSL.
-
-**Option A: VMware Workstation (on Windows host)**
-
-1. Install VMware Workstation on Windows as described in the Windows section
-2. Access VMware tools from WSL by adding Windows paths to your WSL PATH in `~/.bashrc`:
-   ```bash
-   export PATH=$PATH:"/mnt/c/Program Files (x86)/VMware/VMware Workstation"
-   export PATH=$PATH:"/mnt/c/Program Files/VMware/VMware Workstation"
-   ```
-3. Create aliases for the Windows executables so Kroltin can call them without the `.exe` extension. Add to `~/.bashrc`:
-   ```bash
-   alias vmrun='vmrun.exe'
-   alias ovftool='ovftool.exe'
-   ```
-4. Reload shell and verify:
-   ```bash
-   source ~/.bashrc
-   vmrun
-   ovftool
-   ```
-
-**Option B: VirtualBox (on Windows host)**
-
-1. Install VirtualBox on Windows as described in the Windows section
-2. Access VirtualBox tools from WSL by adding Windows paths to your WSL PATH in `~/.bashrc`:
-   ```bash
-   export PATH=$PATH:"/mnt/c/Program Files/Oracle/VirtualBox"
-   ```
-3. Create an alias for the Windows executable so Kroltin can call it without the `.exe` extension. Add to `~/.bashrc`:
-   ```bash
-   alias vboxmanage='VBoxManage.exe'
-   ```
-4. Reload shell and verify:
-   ```bash
-   source ~/.bashrc
-   vboxmanage --version
-   ```
-
-### 5. Install Kroltin
 
 ```bash
 pipx install git+https://github.com/d-woosley/Kroltin.git
