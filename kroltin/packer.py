@@ -173,9 +173,17 @@ class Packer:
             tailscale_key=tailscale_key
         )
 
+        # Build post-processor commands
+        post_processor_commands = self._build_post_processor_commands(
+            build_type="golden",
+            vm_type=vm_type,
+            vm_name=vm_name,
+            export_path=self._gold_export_path(vm_name, vm_type)
+        )
+
         packer_varables = [
             f"name={vm_name}",
-            f"vm_type=[\"{self._map_sources(vm_type, build='golden')}\"]",
+            f"vm_type={self._jsonify_list(self._map_sources(vm_type, build='golden'))}",
             f"cpus={cpus}",
             f"memory={memory}",
             f"disk_size={disk_size}",
@@ -184,14 +192,14 @@ class Packer:
             f"iso_checksum={iso_checksum}",
             f"preseed_file={self.filled_preseed_name}",
             f"http_directory={self.http_directory}",
-            f"isos=[{self._quote_list(isos)}]",
-            f"scripts=[{self._quote_list(filled_scripts)}]",
+            f"isos={self._jsonify_list(isos)}",
+            f"scripts={self._jsonify_list(filled_scripts)}",
             f"export_path={self._gold_export_path(vm_name, vm_type)}",
             f"build_path={self._build_path(vm_name)}",
             f"headless={'true' if headless else 'false'}",
             f"guest_os_type={guest_os_type}",
             f"vmware_version={vmware_version}",
-            f"source_vmx_path={self._source_vmx_path(vm_name)}"
+            f"post_processor_commands={self._jsonify_list(post_processor_commands)}"
         ]
 
         cmd = self._build_packer_cmd(packer_varables, resolved_packer_template)
@@ -303,18 +311,26 @@ class Packer:
             tailscale_key=tailscale_key
         )
 
+        # Build post-processor commands
+        post_processor_commands = self._build_post_processor_commands(
+            build_type="configure",
+            vm_type=vm_type,
+            vm_name=vm_name,
+            export_path=self._config_export_path(vm_name, vm_type, export_path),
+            export_file_type=export_file_type
+        )
+
         packer_varables = [
             f"name={vm_name}",
             f"vm_file={self._find_vm(vm_file, vm_type)}",
-            f"vm_type=[\"{self._map_sources(vm_type, build='configure')}\"]",
+            f"vm_type={self._jsonify_list(self._map_sources(vm_type, build='configure'))}",
             f"ssh_username={ssh_username}",
             f"ssh_password={ssh_password}",
-            f"scripts=[{self._quote_list(filled_scripts)}]",
+            f"scripts={self._jsonify_list(filled_scripts)}",
             f"export_path={self._config_export_path(vm_name, vm_type, export_path)}",
             f"build_path={self._build_path(vm_name)}",
             f"headless={'true' if headless else 'false'}",
-            f"export_file_type={export_file_type}",
-            f"source_vmx_path={self._source_vmx_path(vm_name)}"
+            f"post_processor_commands={self._jsonify_list(post_processor_commands)}"
         ]
         
         cmd = self._build_packer_cmd(packer_varables, resolved_packer_template)
@@ -329,6 +345,78 @@ class Packer:
     # ----------------------------------------------------------------------
     # Helper Methods
     # ----------------------------------------------------------------------
+
+    def _build_post_processor_commands(
+        self,
+        build_type: str,
+        vm_type: str,
+        vm_name: str,
+        export_path: str,
+        export_file_type: str = None
+    ) -> list:
+        """Build the list of post-processor commands for golden or configure builds.
+        
+        Args:
+            build_type: The build type - "golden" or "configure"
+            vm_type: The VM type (vmware, virtualbox, hyperv)
+            vm_name: The name of the VM
+            export_path: The export path for the VM
+            export_file_type: The export file type (ova, ovf, vmx, vhd) - required for configure builds
+            
+        Returns:
+            List of shell commands to execute in the post-processor
+        """
+        commands = []
+        
+        # Derive paths from vm_name
+        build_path = self._build_path(vm_name)
+        source_vmx_path = self._source_vmx_path(vm_name)
+        
+        # Build commands based on VM type and build type
+        if vm_type.lower() == "virtualbox":
+            if build_type == "golden":
+                commands.extend([
+                    f"VBoxManage export '{vm_name}' --output '{export_path}.ova'",
+                    f"VBoxManage unregistervm '{vm_name}' --delete"
+                ])
+            elif build_type == "configure":
+                commands.extend([
+                    f"VBoxManage export '{vm_name}' --output '{export_path}.{export_file_type}' || true",
+                    f"VBoxManage unregistervm '{vm_name}'"
+                ])
+        
+        if vm_type.lower() == "vmware":
+            if build_type == "golden":
+                commands.append(
+                    f"ovftool {source_vmx_path} {export_path}.vmx"
+                )
+            elif build_type == "configure":
+                # Check if VHD export is requested for VMware
+                if export_file_type == "vhd":
+                    # For VHD from VMware, clone the VMDK to VHD using VBoxManage
+                    vmdk_path = f"{build_path}/{vm_name}-disk1.vmdk"
+                    vhd_path = f"{export_path}.vhd"
+                    commands.append(
+                        f"VBoxManage clonemedium disk '{vmdk_path}' '{vhd_path}' --format VHD"
+                    )
+                else:
+                    commands.append(
+                        f"ovftool '{source_vmx_path}' '{export_path}.{export_file_type}' || true"
+                    )
+        
+        return commands
+
+    def _jsonify_list(self, commands: list) -> str:
+        """Format post-processor commands as a JSON array string for Packer.
+        
+        Args:
+            commands: List of shell command strings
+            
+        Returns:
+            JSON-formatted array string suitable for passing to Packer as a variable
+        """
+        import json
+        return json.dumps(commands)
 
     def _build_packer_cmd(self, packer_varables: list, packer_template: str, base_cmd=["packer", "build"],) -> str:
         cmd = base_cmd
@@ -347,10 +435,7 @@ class Packer:
         else:
             return False
     
-    def _quote_list(self, items: list) -> str:
-        return ",".join([f'\"{u}\"' for u in items])
-    
-    def _map_sources(self, type: str, build: str) -> str:
+    def _map_sources(self, type: str, build: str) -> list:
         if build == "golden":
             mapping = {
                 "vmware": "vmware-iso",
@@ -366,14 +451,10 @@ class Packer:
         else:
             raise ValueError(f"Unknown build_type: {build}")
         
-        if type.lower() == "all":
-            type = [f"\"source.{v}.vm\"" for v in mapping.values()]
-            return ",".join(type)
-
         if type.lower() not in mapping:
             raise ValueError(f"Unsupported type '{type}' for build_type '{build}'")
 
-        return f"source.{mapping.get(type.lower(), type)}.vm"
+        return [f"source.{mapping.get(type.lower(), type)}.vm"]
     
     def _map_extension(self, vm_type: str) -> str:
         mapping = {
@@ -569,17 +650,17 @@ class Packer:
         configure_vars = [
             "name=dummy_vm",
             "vm_file=dummy.vmx",
-            "vm_type=[\"source.virtualbox-ovf.vm\"]",
+            f'vm_type={self._jsonify_list(["source.virtualbox-ovf.vm"])}',
             "ssh_username=dummyuser",
             "ssh_password=dummypass",
-            f'scripts=["{test_script_path}"]',
+            f'scripts={self._jsonify_list([test_script_path])}',
             "export_path=dummy_export_path",
-            "source_vmx_path=example-vmx-path.vmx"
+            f'post_processor_commands={self._jsonify_list(["echo test"])}'
         ]
         # Golden variables and defaults
         golden_vars = [
             "name=dummy_vm",
-            "vm_type=[\"source.virtualbox-iso.vm\"]",
+            f'vm_type={self._jsonify_list(["source.virtualbox-iso.vm"])}',
             "cpus=2",
             "memory=2048",
             "disk_size=81920",
@@ -587,9 +668,10 @@ class Packer:
             "ssh_password=dummypass",
             "iso_checksum=1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
             "preseed_file=dummy_preseed.cfg",
-            "isos=[\"dummy.iso\"]",
-            f'scripts=["{test_script_path}"]',
-            "export_path=dummy_export_path"
+            f'isos={self._jsonify_list(["dummy.iso"])}',
+            f'scripts={self._jsonify_list([test_script_path])}',
+            "export_path=dummy_export_path",
+            f'post_processor_commands={self._jsonify_list(["echo test"])}'
         ]
 
         # Try configure variables first
@@ -639,7 +721,7 @@ class Packer:
         required_params = {
             'packer_template': 'Packer template file',
             'vm_name': 'VM name',
-            'vm_type': 'VM type (vmware, virtualbox, hyperv, all)',
+            'vm_type': 'VM type (vmware, virtualbox, hyperv)',
             'isos': 'ISO file(s)',
             'cpus': 'Number of CPUs',
             'memory': 'Memory in MB',
@@ -676,7 +758,7 @@ class Packer:
         required_params = {
             'packer_template': 'Packer template file',
             'vm_name': 'VM name',
-            'vm_type': 'VM type (vmware, virtualbox, hyperv, all)',
+            'vm_type': 'VM type (vmware, virtualbox, hyperv)',
             'vm_file': 'VM file to configure',
             'ssh_username': 'SSH username',
             'ssh_password': 'SSH password',

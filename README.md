@@ -15,7 +15,9 @@ The tool handles:
 
 ## Installation
 
-Install directly from GitHub using pipx:
+### Quick Install
+
+Install Kroltin directly from GitHub using pipx:
 
 ```bash
 pipx install git+https://github.com/d-woosley/Kroltin.git
@@ -25,6 +27,12 @@ pipx install git+https://github.com/d-woosley/Kroltin.git
 - Python 3.8 or later
 - [HashiCorp Packer](https://www.packer.io/downloads)
 - VMware Workstation/Fusion or VirtualBox CLI tools in PATH
+
+> ℹ️ You only need to install **one** of the virtualization platforms (VMware or VirtualBox), not both.
+
+### Detailed Installation Instructions
+
+For complete platform-specific installation guides (Windows, Linux, WSL), see **[INSTALL.md](INSTALL.md)**.
 
 ## Usage
 

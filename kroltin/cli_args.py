@@ -446,9 +446,9 @@ class ArgsValidator:
         configure_parser.add_argument(
             "--export-file-type",
             dest="export_file_type",
-            help="Export file type: ova, ovf, or vmx (vmx is VMware only; default: ova if not using template)",
+            help="Export file type: ova, ovf, vmx, or vhd (vmx and vhd are VMware only)",
             type=str,
-            choices=["ova", "ovf", "vmx"],
+            choices=["ova", "ovf", "vmx", "vhd"],
             default=None
         )
 

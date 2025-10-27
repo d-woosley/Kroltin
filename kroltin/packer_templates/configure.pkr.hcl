@@ -17,17 +17,16 @@ packer {
 locals { version = formatdate("YYYY.MM.DD", timestamp()) }
 
 
-variable "name"             { type = string }
-variable "vm_file"          { type = string }
-variable "vm_type"          { type = list(string) }
-variable "ssh_username"     { type = string }
-variable "ssh_password"     { type = string }
-variable "scripts"          { type = list(string) }
-variable "export_path"      { type = string }
-variable "build_path"       { type = string }
-variable "headless"         { type = bool }
-variable "export_file_type" { type = string }
-variable "source_vmx_path"  { type = string }
+variable "name"                     { type = string }
+variable "vm_file"                  { type = string }
+variable "vm_type"                  { type = list(string) }
+variable "ssh_username"             { type = string }
+variable "ssh_password"             { type = string }
+variable "scripts"                  { type = list(string) }
+variable "export_path"              { type = string }
+variable "build_path"               { type = string }
+variable "headless"                 { type = bool }
+variable "post_processor_commands"  { type = list(string) }
 
 source "virtualbox-ovf" "vm" {
   source_path = var.vm_file
@@ -58,7 +57,7 @@ source "vmware-vmx" "vm" {
 build {
   sources = var.vm_type
 
-  # Grant temporary NOPASSWD sudo for shutdown to handle password changes during provisioning
+  # Grant NOPASSWD sudo for shutdown to handle password changes during provisioning
   provisioner "shell" {
     inline = [
       "echo '${var.ssh_password}' | sudo -S sh -c 'echo \"${var.ssh_username} ALL=(ALL) NOPASSWD: /sbin/shutdown\" >> /etc/sudoers.d/packer-shutdown'",
@@ -73,26 +72,9 @@ build {
     expect_disconnect = true
   }
 
-  # Clean up the temporary sudoers file (optional, for security)
-  provisioner "shell" {
-    inline = [
-      "sudo rm -f /etc/sudoers.d/packer-shutdown || true"
-    ]
-  }
-
   post-processors {
     post-processor "shell-local" {
-      only = ["virtualbox-ovf.vm"]
-      inline = [
-        "VBoxManage export '${var.name}' --output '${var.export_path}.${var.export_file_type}' || true",
-        "VBoxManage unregistervm '${var.name}'"
-      ]
-    }
-    post-processor "shell-local" {
-      only = ["vmware-vmx.vm"]
-      inline = [
-        "ovftool '${var.source_vmx_path}' '${var.export_path}.${var.export_file_type}' || true"
-      ]
+      inline = var.post_processor_commands
     }
   }
 }
