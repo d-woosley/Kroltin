@@ -29,7 +29,7 @@ variable "build_path"           { type = string }
 variable "headless"             { type = bool }
 variable "guest_os_type"        { type = string }
 variable "vmware_version"       { type = number }
-variable "source_vmx_path"      { type = string }
+variable "post_processor_commands" { type = list(string) }
 
 source "virtualbox-iso" "vm" {
   boot_command = [
@@ -115,17 +115,7 @@ build {
 
   post-processors {
     post-processor "shell-local" {
-      only = ["virtualbox-iso.vm"]
-      inline = [
-        "VBoxManage export '${var.name}' --output '${var.export_path}.ova'",
-        "VBoxManage unregistervm '${var.name}' --delete"
-      ]
-    }
-    post-processor "shell-local" {
-      only = ["vmware-iso.vm"]
-      inline = [
-        "ovftool ${var.source_vmx_path} ${var.export_path}.vmx"
-      ]
+      inline = var.post_processor_commands
     }
   }
 }
