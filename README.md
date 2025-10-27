@@ -43,21 +43,21 @@ Kroltin supports build templates for simplified command invocation. Templates st
 **List available templates:**
 
 ```bash
-kroltin-cli --list-templates
+kroltin --list-templates
 # or
-kroltin-cli golden -lt
+kroltin golden -lt
 ```
 
 **Build using a template:**
 
 ```bash
-kroltin-cli golden -t kali-latest --ssh-password kroltin
+kroltin golden -t kali-latest --ssh-password kroltin
 ```
 
 **Configure using a template:**
 
 ```bash
-kroltin-cli configure -t kali-tailscale --ssh-password kroltin --tailscale-key tskey-abc123
+kroltin configure -t kali-tailscale --ssh-password kroltin --tailscale-key tskey-abc123
 ```
 
 Templates can include any command-line argument. You can override template values or provide missing required parameters (like `--ssh-password` and `--tailscale-key`) at runtime.
@@ -71,7 +71,7 @@ It's recommended to build a golden image first. Golden images can be reused for 
 **Using a template:**
 
 ```bash
-kroltin-cli golden -t kali-latest --ssh-password kroltin
+kroltin golden -t kali-latest --ssh-password kroltin
 ```
 
 **Using full command-line arguments:**
@@ -118,7 +118,7 @@ Configuration builds are final products and cannot be saved back to the kroltin 
 **Using a template:**
 
 ```bash
-kroltin-cli configure -t kali-tailscale --ssh-password kroltin --tailscale-key tskey-abc123
+kroltin configure -t kali-tailscale --ssh-password kroltin --tailscale-key tskey-abc123
 ```
 
 **Using full command-line arguments:**
@@ -245,7 +245,7 @@ List available build templates:
 ```bash
 kroltin --list-templates
 # or
-kroltin-cli -lt
+kroltin -lt
 ```
 
 Add custom resources:

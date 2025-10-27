@@ -9,13 +9,11 @@ readme = "README.md"
 license = {file = "LICENSE.txt"}
 requires-python = ">=3.8"
 dependencies = [
-    "flask==3.1.1",
-    "tailscale==0.6.2",
     "psutil>=5.9.0",
 ]
 
 [project.scripts]
-kroltin-cli = "kroltin.run:cli"
+kroltin = "kroltin.run:cli"
 kroltin-web = "kroltin.run:web"
 
 [tool.setuptools]
