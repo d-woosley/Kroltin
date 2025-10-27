@@ -233,10 +233,16 @@ packer version
    export PATH=$PATH:"/mnt/c/Program Files (x86)/VMware/VMware Workstation"
    export PATH=$PATH:"/mnt/c/Program Files/VMware/VMware Workstation"
    ```
-3. Reload shell and verify:
+3. Create aliases for the Windows executables so Kroltin can call them without the `.exe` extension. Add to `~/.bashrc`:
+   ```bash
+   alias vmrun='vmrun.exe'
+   alias ovftool='ovftool.exe'
+   ```
+4. Reload shell and verify:
    ```bash
    source ~/.bashrc
-   vmrun.exe
+   vmrun
+   ovftool
    ```
 
 **Option B: VirtualBox (on Windows host)**
@@ -246,10 +252,14 @@ packer version
    ```bash
    export PATH=$PATH:"/mnt/c/Program Files/Oracle/VirtualBox"
    ```
-3. Reload shell and verify:
+3. Create an alias for the Windows executable so Kroltin can call it without the `.exe` extension. Add to `~/.bashrc`:
+   ```bash
+   alias vboxmanage='VBoxManage.exe'
+   ```
+4. Reload shell and verify:
    ```bash
    source ~/.bashrc
-   VBoxManage.exe --version
+   vboxmanage --version
    ```
 
 ### 5. Install Kroltin
