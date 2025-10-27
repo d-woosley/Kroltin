@@ -275,7 +275,7 @@ pipx install git+https://github.com/d-woosley/Kroltin.git
 After completing the installation for your platform, verify everything is working:
 
 ```bash
-kroltin-cli --help
+kroltin --help
 packer version
 ```
 
