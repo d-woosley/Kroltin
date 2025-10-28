@@ -9,7 +9,7 @@ import pathlib
 import time
 import shutil
 import hashlib
-import crypt
+from passlib.hash import sha512_crypt
 import re
 import secrets
 import string
@@ -381,14 +381,14 @@ class Packer:
                 ])
             elif build_type == "configure":
                 commands.extend([
-                    f"VBoxManage export '{vm_name}' --output '{export_path}.{export_file_type}' || true",
+                    f"VBoxManage export '{vm_name}' --output '{export_path}.{export_file_type}'",
                     f"VBoxManage unregistervm '{vm_name}'"
                 ])
         
         if vm_type.lower() == "vmware":
             if build_type == "golden":
                 commands.append(
-                    f"ovftool {source_vmx_path} {export_path}.vmx"
+                    f"ovftool --sourceType=VMX {source_vmx_path} {export_path}.vmx"
                 )
             elif build_type == "configure":
                 # Check if VHD export is requested for VMware
@@ -401,7 +401,7 @@ class Packer:
                     )
                 else:
                     commands.append(
-                        f"ovftool '{source_vmx_path}' '{export_path}.{export_file_type}' || true"
+                        f"ovftool --sourceType=VMX '{source_vmx_path}' '{export_path}.{export_file_type}'"
                     )
         
         return commands
@@ -1004,10 +1004,9 @@ class Packer:
     def _generate_sha512_crypt(self, password: str) -> str:
         """Generate a SHA-512 crypt(6) hash for the given password."""
         try:
-            salt = crypt.mksalt(crypt.METHOD_SHA512)
-            return crypt.crypt(password, salt)
+            return sha512_crypt.hash(password)
         except Exception as e:
-            self.logger.error(f"Failed to generate SHA-512 crypt hash via crypt module: {e}")
+            self.logger.error(f"Failed to generate SHA-512 crypt hash via passlib: {e}")
             raise
     
     def _generate_random_password(self, length: int = 16) -> str:
