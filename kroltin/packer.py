@@ -53,8 +53,8 @@ class Packer:
         cpus: int = None,
         memory: int = None,
         disk_size: int = None,
-        ssh_username: str = None,
-        ssh_password: str = None,
+        os_username: str = None,
+        os_password: str = None,
         hostname: str = None,
         iso_checksum: str = None,
         scripts: list = None,
@@ -70,11 +70,11 @@ class Packer:
         This maps the Packer variables expected by an ISO-based template.
         Can accept either explicit parameters or a template name.
         """
-        # Handle random password (takes priority over ssh_password)
+        # Handle random password (takes priority over os_password)
         if random_password:
             self.random_password = self._generate_random_password()
-            ssh_password = self.random_password
-            self.logger.info(f"Using random password for SSH (generated)")
+            os_password = self.random_password
+            self.logger.info(f"Using random password for OS (generated)")
 
         # If template is provided, load and merge configuration
         if template:
@@ -128,8 +128,8 @@ class Packer:
             cpus=cpus,
             memory=memory,
             disk_size=disk_size,
-            ssh_username=ssh_username,
-            ssh_password=ssh_password,
+            os_username=os_username,
+            os_password=os_password,
             hostname=hostname,
             iso_checksum=iso_checksum,
             scripts=scripts,
@@ -142,10 +142,10 @@ class Packer:
         
         self.logger.debug(
             "Starting golden build with ISOs: %s, vm_name: %s, vm_type: %s, cpus: %s, "
-            "memory: %s, disk_size: %s, ssh_username %s, build_script: %s, "
+            "memory: %s, disk_size: %s, os_username %s, build_script: %s, "
             "iso_checksum: %s, preseed_file: %s",
             str(isos), vm_name, vm_type, str(cpus), str(memory), str(disk_size),
-            ssh_username, str(scripts), iso_checksum, preseed_file
+            os_username, str(scripts), iso_checksum, preseed_file
         )
 
         resolved_packer_template = self._resolve_packer_template(packer_template)
@@ -158,8 +158,8 @@ class Packer:
                 preseed_file,
                 self.preseed_dir
             ),
-            ssh_username=ssh_username,
-            ssh_password=ssh_password,
+            os_username=os_username,
+            os_password=os_password,
             hostname=hostname
         )
 
@@ -167,8 +167,8 @@ class Packer:
         resolved_scripts = self._resolve_scripts(scripts)
         filled_scripts = self._check_and_fill_scripts(
             resolved_scripts,
-            ssh_username=ssh_username,
-            ssh_password=ssh_password,
+            os_username=os_username,
+            os_password=os_password,
             hostname=hostname,
             tailscale_key=tailscale_key
         )
@@ -187,8 +187,8 @@ class Packer:
             f"cpus={cpus}",
             f"memory={memory}",
             f"disk_size={disk_size}",
-            f"ssh_username={ssh_username}",
-            f"ssh_password={ssh_password}",
+            f"os_username={os_username}",
+            f"os_password={os_password}",
             f"iso_checksum={iso_checksum}",
             f"preseed_file={self.filled_preseed_name}",
             f"http_directory={self.http_directory}",
@@ -205,10 +205,10 @@ class Packer:
         cmd = self._build_packer_cmd(packer_varables, resolved_packer_template)
 
         if self._run_packer(cmd):
-            self._build_cleanup(vm_name=vm_name, ssh_password=ssh_password)
+            self._build_cleanup(vm_name=vm_name, os_password=os_password)
             return True
         else:
-            self._build_cleanup(vm_name=vm_name, ssh_password=ssh_password)
+            self._build_cleanup(vm_name=vm_name, os_password=os_password)
             return False
 
     def configure(
@@ -218,8 +218,8 @@ class Packer:
         vm_name: str = None,
         vm_type: str = None,
         vm_file: str = None,
-        ssh_username: str = None,
-        ssh_password: str = None,
+        os_username: str = None,
+        os_password: str = None,
         hostname: str = None,
         scripts: list = None,
         export_path: str = None,
@@ -232,11 +232,11 @@ class Packer:
         
         Can accept either explicit parameters or a template name.
         """
-        # Handle random password (takes priority over ssh_password)
+        # Handle random password (takes priority over os_password)
         if random_password:
             self.random_password = self._generate_random_password()
-            ssh_password = self.random_password
-            self.logger.info(f"Using random password for SSH")
+            os_password = self.random_password
+            self.logger.info(f"Using random password for OS (generated)")
 
         # If template is provided, load and merge configuration
         if template:
@@ -280,8 +280,8 @@ class Packer:
             vm_name=vm_name,
             vm_type=vm_type,
             vm_file=vm_file,
-            ssh_username=ssh_username,
-            ssh_password=ssh_password,
+            os_username=os_username,
+            os_password=os_password,
             hostname=hostname,
             scripts=scripts,
             export_path=export_path,
@@ -305,8 +305,8 @@ class Packer:
         resolved_scripts = self._resolve_scripts(scripts)
         filled_scripts = self._check_and_fill_scripts(
             resolved_scripts,
-            ssh_username=ssh_username,
-            ssh_password=ssh_password,
+            os_username=os_username,
+            os_password=os_password,
             hostname=hostname,
             tailscale_key=tailscale_key
         )
@@ -324,8 +324,8 @@ class Packer:
             f"name={vm_name}",
             f"vm_file={self._find_vm(vm_file, vm_type)}",
             f"vm_type={self._jsonify_list(self._map_sources(vm_type, build='configure'))}",
-            f"ssh_username={ssh_username}",
-            f"ssh_password={ssh_password}",
+            f"os_username={os_username}",
+            f"os_password={os_password}",
             f"scripts={self._jsonify_list(filled_scripts)}",
             f"export_path={self._config_export_path(vm_name, vm_type, export_path)}",
             f"build_path={self._build_path(vm_name)}",
@@ -336,10 +336,10 @@ class Packer:
         cmd = self._build_packer_cmd(packer_varables, resolved_packer_template)
 
         if self._run_packer(cmd):
-            self._build_cleanup(vm_name=vm_name, ssh_password=ssh_password)
+            self._build_cleanup(vm_name=vm_name, os_password=os_password)
             return True
         else:
-            self._build_cleanup(vm_name=vm_name, ssh_password=ssh_password)
+            self._build_cleanup(vm_name=vm_name, os_password=os_password)
             return False
     
     # ----------------------------------------------------------------------
@@ -477,7 +477,7 @@ class Packer:
         
         return hash_func.hexdigest()
 
-    def _build_cleanup(self, vm_name: str, ssh_password: str = None):
+    def _build_cleanup(self, vm_name: str, os_password: str = None):
         """Centralized cleanup for golden/configure flows.
 
         Removes the filled preseed, filled scripts, and temporary build path. 
@@ -504,7 +504,7 @@ class Packer:
 
             # If a random password was used, print it to stdout (not in logs)
             if self.random_password:
-                print(f"  ######## Random SSH password for '{vm_name}': {self.random_password} ########")
+                print(f"    ######## Random OS password for '{vm_name}': {self.random_password}")
         except Exception:
             self.logger.debug("_build_cleanup encountered an unexpected error, continuing.")
 
@@ -651,8 +651,8 @@ class Packer:
             "name=dummy_vm",
             "vm_file=dummy.vmx",
             f'vm_type={self._jsonify_list(["source.virtualbox-ovf.vm"])}',
-            "ssh_username=dummyuser",
-            "ssh_password=dummypass",
+            "os_username=dummyuser",
+            "os_password=dummypass",
             f'scripts={self._jsonify_list([test_script_path])}',
             "export_path=dummy_export_path",
             f'post_processor_commands={self._jsonify_list(["echo test"])}'
@@ -664,8 +664,8 @@ class Packer:
             "cpus=2",
             "memory=2048",
             "disk_size=81920",
-            "ssh_username=dummyuser",
-            "ssh_password=dummypass",
+            "os_username=dummyuser",
+            "os_password=dummypass",
             "iso_checksum=1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
             "preseed_file=dummy_preseed.cfg",
             f'isos={self._jsonify_list(["dummy.iso"])}',
@@ -726,8 +726,8 @@ class Packer:
             'cpus': 'Number of CPUs',
             'memory': 'Memory in MB',
             'disk_size': 'Disk size in MB',
-            'ssh_username': 'SSH username',
-            'ssh_password': 'SSH password',
+            'os_username': 'OS username',
+            'os_password': 'OS password',
             'hostname': 'Hostname',
             'iso_checksum': 'ISO checksum',
             'preseed_file': 'Preseed file',
@@ -760,8 +760,8 @@ class Packer:
             'vm_name': 'VM name',
             'vm_type': 'VM type (vmware, virtualbox, hyperv)',
             'vm_file': 'VM file to configure',
-            'ssh_username': 'SSH username',
-            'ssh_password': 'SSH password',
+            'os_username': 'OS username',
+            'os_password': 'OS password',
             'hostname': 'Hostname',
             'export_path': 'Export path for configured VM',
             'export_file_type': 'Export file type (ova, ovf, vmx)',
@@ -814,10 +814,10 @@ class Packer:
         """
         # Define the mapping from Python variables to template placeholders
         variable_mapping = {
-            'ssh_username': '{{USERNAME}}',
+            'os_username': '{{USERNAME}}',
             'hostname': '{{HOSTNAME}}',
             'tailscale_key': '{{TAILSCALE_KEY}}',
-            'ssh_password': '{{PASSWORD}}',
+            'os_password': '{{PASSWORD}}',
         }
         
         # Build the template variable map
@@ -828,9 +828,9 @@ class Packer:
             if value is not None:
                 template_map[placeholder] = value
         
-        # Handle special case: PASSWORD_CRYPT derived from ssh_password
-        if 'ssh_password' in kwargs and kwargs['ssh_password'] is not None:
-            password_crypt = self._generate_sha512_crypt(kwargs['ssh_password'])
+        # Handle special case: PASSWORD_CRYPT derived from os_password
+        if 'os_password' in kwargs and kwargs['os_password'] is not None:
+            password_crypt = self._generate_sha512_crypt(kwargs['os_password'])
             template_map['{{PASSWORD_CRYPT}}'] = password_crypt
         
         # Handle special case: RANDOM_PASSWORD
@@ -943,7 +943,7 @@ class Packer:
         Args:
             input_file: Path to the template file to read
             output_file: Path to the output file to write
-            **kwargs: Variable name/value pairs (e.g., ssh_username='user', hostname='myhost')
+            **kwargs: Variable name/value pairs (e.g., os_username='user', hostname='myhost')
             
         Returns:
             True if successful, raises exception otherwise
@@ -967,11 +967,11 @@ class Packer:
 
     def _fill_pressed(self,
             preseed_file: str,
-            ssh_username: str,
-            ssh_password: str,
+            os_username: str,
+            os_password: str,
             hostname: str
         ) -> str:
-        """Fill in the preseed file with the provided SSH username and password."""
+        """Fill in the preseed file with the provided OS username and password."""
         if not path.exists(self.templates_build_dir):
             pathlib.Path(self.templates_build_dir).mkdir(parents=True, exist_ok=True)
 
@@ -985,8 +985,8 @@ class Packer:
         self._fill_template_variables(
             input_file=preseed_file,
             output_file=self.filled_preseed_path,
-            ssh_username=ssh_username,
-            ssh_password=ssh_password,
+            os_username=os_username,
+            os_password=os_password,
             hostname=hostname
         )
         

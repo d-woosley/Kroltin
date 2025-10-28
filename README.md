@@ -51,16 +51,16 @@ kroltin golden -lt
 **Build using a template:**
 
 ```bash
-kroltin golden -t kali-latest --ssh-password kroltin
+kroltin golden -t kali-latest --os-password kroltin
 ```
 
 **Configure using a template:**
 
 ```bash
-kroltin configure -t kali-tailscale --ssh-password kroltin --tailscale-key tskey-abc123
+kroltin configure -t kali-tailscale --os-password kroltin --tailscale-key tskey-abc123
 ```
 
-Templates can include any command-line argument. You can override template values or provide missing required parameters (like `--ssh-password` and `--tailscale-key`) at runtime.
+Templates can include any command-line argument. You can override template values or provide missing required parameters (like `--os-password` and `--tailscale-key`) at runtime.
 
 See [TEMPLATES.md](TEMPLATES.md) for detailed template documentation and how to create custom templates.
 
@@ -71,7 +71,7 @@ It's recommended to build a golden image first. Golden images can be reused for 
 **Using a template:**
 
 ```bash
-kroltin golden -t kali-latest --ssh-password kroltin
+kroltin golden -t kali-latest --os-password kroltin
 ```
 
 **Using full command-line arguments:**
@@ -88,10 +88,10 @@ kroltin golden \
   --memory 8192 \
   --disk-size 81920 \
   --scripts software.sh cleanup.sh \
-  --ssh-username kali
+  --os-username kali
 ```
 
-If no `--ssh-password` is provided, you will be prompted to enter one.
+If no `--os-password` is provided, you will be prompted to enter one.
 
 **Using a random password:**
 
@@ -104,10 +104,10 @@ kroltin golden -t kali-latest --random-password
 The randomly generated password will be printed at the end of the build, after cleanup completes. This ensures the password is not lost in the build output. Example output:
 
 ```
-  ######## Random SSH password for 'kali-base-2024': aB3$xY9!mN7@pQ2& ########
+    ######## Random OS password for 'kali-base-2024': aB3$xY9!mN7@pQ2&
 ```
 
-> ℹ️ The `--random-password` flag takes priority over `--ssh-password`. If both are provided, the random password will be used.
+> ℹ️ The `--random-password` flag takes priority over `--os-password`. If both are provided, the random password will be used.
 
 > ℹ️ Password changes during configuration builds are not yet supported.
 
@@ -118,7 +118,7 @@ Configuration builds are final products and cannot be saved back to the kroltin 
 **Using a template:**
 
 ```bash
-kroltin configure -t kali-tailscale --ssh-password kroltin --tailscale-key tskey-abc123
+kroltin configure -t kali-tailscale --os-password kroltin --tailscale-key tskey-abc123
 ```
 
 **Using full command-line arguments:**
@@ -131,7 +131,7 @@ kroltin configure \
   --packer-template configure.pkr.hcl \
   --scripts custom-setup.sh \
   --export-path ./configured-vm \
-  --ssh-username kali
+  --os-username kali
 ```
 
 ### Building and Exporting a Golden Image Only
@@ -146,7 +146,7 @@ kroltin golden \
   --iso /path/to/kali.iso \
   --iso-checksum "sha256:abc123..." \
   --preseed-file kali-linux_2503.cfg \
-  --ssh-username kali
+  --os-username kali
 ```
 
 After the build completes, export the golden image:
@@ -163,9 +163,9 @@ Kroltin supports dynamic variable substitution in preseed files and bash scripts
 
 | Variable | CLI Argument | Description |
 |----------|--------------|-------------|
-| `{{USERNAME}}` | `--ssh-username` | SSH username (default: `kroltin`) |
-| `{{PASSWORD}}` | `--ssh-password` | SSH password in plaintext |
-| `{{PASSWORD_CRYPT}}` | `--ssh-password` | SHA-512 crypt hash of the SSH password in unix `/etc/shadow` format |
+| `{{USERNAME}}` | `--os-username` | OS username (default: `kroltin`) |
+| `{{PASSWORD}}` | `--os-password` | OS password in plaintext |
+| `{{PASSWORD_CRYPT}}` | `--os-password` | SHA-512 crypt hash of the OS password in unix `/etc/shadow` format |
 | `{{RANDOM_PASSWORD}}` | Auto-generated | Randomly generated 16-character password (auto-generated when found in scripts) |
 | `{{HOSTNAME}}` | `--hostname` | Hostname (default: uses `--vm-name`) |
 | `{{TAILSCALE_KEY}}` | `--tailscale-key` | Tailscale authentication key for automatic network setup |
@@ -318,9 +318,9 @@ kroltin golden [OPTIONS]
 - `--vmware-version <NUM>`: VMware hardware version (default: 16)
 
 **Template Variables:**
-- `--ssh-username <USER>`: SSH username (default: `kroltin`)
-- `--ssh-password <PASS>`: SSH password (prompted if omitted)
-- `-rp, --random-password`: Generate a secure random 16-character password (takes priority over `--ssh-password`; printed at end of build)
+- `--os-username <USER>`: OS username (default: `kroltin`)
+- `--os-password <PASS>`: OS password (prompted if omitted)
+- `-rp, --random-password`: Generate a secure random 16-character password (takes priority over `--os-password`; printed at end of build)
 - `--hostname <NAME>`: Hostname (default: uses `--vm-name`)
 - `--tailscale-key <KEY>`: Tailscale authentication key for automatic network setup
 
@@ -349,9 +349,9 @@ kroltin configure [OPTIONS]
 - `--export-file-type <TYPE>`: Export format (`ova`, `ovf`, `vmx`; default: `ova`)
 
 **Template Variables:**
-- `--ssh-username <USER>`: SSH username (default: `kroltin`)
-- `--ssh-password <PASS>`: SSH password (prompted if omitted)
-- `-rp, --random-password`: Generate a secure random 16-character password (takes priority over `--ssh-password`; printed at end of build)
+- `--os-username <USER>`: OS username (default: `kroltin`)
+- `--os-password <PASS>`: OS password (prompted if omitted)
+- `-rp, --random-password`: Generate a secure random 16-character password (takes priority over `--os-password`; printed at end of build)
 - `--hostname <NAME>`: Hostname (default: uses `--vm-name`)
 - `--tailscale-key <KEY>`: Tailscale authentication key for automatic network setup
 

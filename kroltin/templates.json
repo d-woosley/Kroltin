@@ -6,7 +6,7 @@
       "type": "golden",
       "config": {
         "vm_type": "vmware",
-        "ssh_username": "kali",
+        "os_username": "kali",
         "packer_template": "build.pkr.hcl",
         "iso": ["https://cdimage.kali.org/kali-2025.2/kali-linux-2025.2-installer-amd64.iso"],
         "iso_checksum": "sha256:5723d46414b45575aa8e199740bbfde49e5b2501715ea999f0573e94d61e39d3",
@@ -27,7 +27,7 @@
       "type": "configure",
       "config": {
         "vm_type": "vmware",
-        "ssh_username": "kali",
+        "os_username": "kali",
         "packer_template": "configure.pkr.hcl",
         "vm_file": "kali-latest-base",
         "vm_name": "kali-tailscale",
