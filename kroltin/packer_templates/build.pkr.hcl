@@ -17,8 +17,8 @@ variable "vm_type"              { type = list(string) }
 variable "cpus"                 { type = number }
 variable "memory"               { type = number }
 variable "disk_size"            { type = number }
-variable "ssh_username"         { type = string }
-variable "ssh_password"         { type = string }
+variable "os_username"         { type = string }
+variable "os_password"         { type = string }
 variable "isos"                 { type = list(string) }
 variable "iso_checksum"         { type = string }
 variable "scripts"              { type = list(string) }
@@ -52,15 +52,15 @@ source "virtualbox-iso" "vm" {
   guest_os_type        = var.guest_os_type
   headless             = var.headless
   http_directory       = var.http_directory
-  ssh_username         = var.ssh_username
-  ssh_password         = var.ssh_password
+  ssh_username         = var.os_username
+  ssh_password         = var.os_password
   ssh_port             = "22"
   ssh_timeout          = "3600s"
   hard_drive_interface = "sata"
   vboxmanage           = [["modifyvm","{{ .Name }}","--vram","64"]]
   keep_registered      = true
   output_directory     = "${var.build_path}"
-  shutdown_command     = "echo '${var.ssh_password}' | sudo -S shutdown -P now"
+  shutdown_command     = "echo '${var.os_password}' | sudo -S shutdown -P now"
 }
 
 source "vmware-iso" "vm" {
@@ -82,8 +82,8 @@ source "vmware-iso" "vm" {
   iso_checksum         = var.iso_checksum
   headless             = var.headless
   http_directory       = var.http_directory
-  ssh_username         = var.ssh_username
-  ssh_password         = var.ssh_password
+  ssh_username         = var.os_username
+  ssh_password         = var.os_password
   ssh_port             = 22
   ssh_timeout          = "3600s"
   vnc_disable_password = true
@@ -100,15 +100,15 @@ source "vmware-iso" "vm" {
   vmx_remove_ethernet_interfaces  = false
   version                         = var.vmware_version
   output_directory                = "${var.build_path}"
-  shutdown_command                = "echo '${var.ssh_password}' | sudo -S shutdown -P now"
+  shutdown_command                = "echo '${var.os_password}' | sudo -S shutdown -P now"
 }
 
 build {
   sources = var.vm_type
 
   provisioner "shell" {
-    environment_vars = ["HOME_DIR=/home/${var.ssh_username}"]
-    execute_command   = "echo '${var.ssh_password}' | {{ .Vars }} sudo -S -E sh -eux '{{ .Path }}'"
+    environment_vars = ["HOME_DIR=/home/${var.os_username}"]
+    execute_command   = "echo '${var.os_password}' | {{ .Vars }} sudo -S -E sh -eux '{{ .Path }}'"
     scripts           = var.scripts
     expect_disconnect = true
   }

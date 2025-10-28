@@ -60,16 +60,16 @@ class ArgsValidator:
             'Variables that can be used in preseed files and bash scripts via {{VARIABLE}} placeholders'
         )
         template_vars_group.add_argument(
-            "--ssh-username",
-            dest="ssh_username",
-            help="SSH username for the VM (mapped to {{USERNAME}} in templates; default: kroltin)",
+            "--os-username",
+            dest="os_username",
+            help="OS username for the VM (mapped to {{USERNAME}} in templates; default: kroltin)",
             type=str,
             default="kroltin"
         )
         template_vars_group.add_argument(
-            "--ssh-password",
-            dest="ssh_password",
-            help="SSH password for the VM (mapped to {{PASSWORD_CRYPT}} in templates; will prompt if omitted)",
+            "--os-password",
+            dest="os_password",
+            help="OS password for the VM (mapped to {{PASSWORD_CRYPT}} in templates; will prompt if omitted)",
             type=str,
             required=False
         )
@@ -77,7 +77,7 @@ class ArgsValidator:
             "-rp",
             "--random-password",
             dest="random_password",
-            help="Generate a random 30-character password (overrides --ssh-password)",
+            help="Generate a random 30-character password (overrides --os-password)",
             action="store_true",
             default=False
         )
@@ -514,11 +514,11 @@ class ArgsValidator:
                     if not getattr(args, 'vm_file', None):
                         self.parser.error("--vm-file is required")
 
-            # Prompt for ssh password if missing and not using random password
+            # Prompt for os password if missing and not using random password
             if not getattr(args, 'random_password', False):
-                if not getattr(args, 'ssh_password', None):
+                if not getattr(args, 'os_password', None):
                     try:
-                        args.ssh_password = getpass(prompt='SSH password: ')
+                        args.os_password = getpass(prompt='OS password: ')
                     except (KeyboardInterrupt, EOFError):
                         print('')
                         raise
