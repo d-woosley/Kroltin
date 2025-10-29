@@ -136,7 +136,14 @@ packer version
 >    - `C:\Program Files\Oracle\VirtualBox\`
 > 3. Close and reopen your terminal
 
-### 5. Install Kroltin
+### 5. Open Preseed HTTP Firewall Port
+Windows golden image builds will need to serve the preseed file over an HTTP server on port 8804. Therefore, you will have to allow packer to open this port on the firewall using the following command (Run as Administrator).
+
+```PowerShell
+New-NetFirewallRule -DisplayName "Packer HTTP Server" -Direction Inbound -Program (Get-Command packer).Path -Protocol TCP -LocalPort 8804 -Action Allow -Profile Private
+```
+
+### 6. Install Kroltin
 
 ```cmd
 pipx install git+https://github.com/d-woosley/Kroltin.git
