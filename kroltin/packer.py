@@ -387,8 +387,12 @@ class Packer:
         
         if vm_type.lower() == "vmware":
             if build_type == "golden":
+                # Use platform-appropriate quoting for paths (Windows needs double quotes)
+                import sys
+                q = '"' if sys.platform.startswith('win') else '"'  # use double quotes everywhere for consistency
+                # Always quote paths to handle spaces; avoid single quotes on Windows CMD/PowerShell
                 commands.append(
-                    f"ovftool --sourceType=VMX {source_vmx_path} {export_path}.vmx"
+                    f"ovftool --sourceType=VMX {q}{source_vmx_path}{q} {q}{export_path}.vmx{q}"
                 )
             elif build_type == "configure":
                 # Check if VHD export is requested for VMware
@@ -400,8 +404,10 @@ class Packer:
                         f"VBoxManage clonemedium disk '{vmdk_path}' '{vhd_path}' --format VHD"
                     )
                 else:
+                    import sys
+                    q = '"' if sys.platform.startswith('win') else '"'
                     commands.append(
-                        f"ovftool --sourceType=VMX '{source_vmx_path}' '{export_path}.{export_file_type}'"
+                        f"ovftool --sourceType=VMX {q}{source_vmx_path}{q} {q}{export_path}.{export_file_type}{q}"
                     )
         
         return commands

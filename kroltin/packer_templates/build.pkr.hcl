@@ -88,6 +88,9 @@ source "vmware-iso" "vm" {
   ssh_timeout          = "3600s"
   vnc_disable_password = true
   vnc_bind_address     = "127.0.0.1"
+  http_bind_address    = "0.0.0.0"
+  http_port_min        = 8804
+  http_port_max        = 8804
   vmx_data_post        = {
                           "virtualHW.version": "${var.vmware_version}",
                           "cleanShutdown": "true",
