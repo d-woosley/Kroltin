@@ -18,7 +18,7 @@
         "guest_os_type": "debian_64",
         "vmware_version": 16,
         "headless": true,
-        "scripts": ["kali-grant-root.sh", "apt-update.sh", "start-systemctl-ssh.sh", "enable-kali-desktop-gui.sh"]
+        "scripts": ["kali-grant-root.sh", "apt-update.sh", "start-systemctl-ssh.sh", "enable-kali-desktop-gui.sh", "install-guest-additions.sh"]
       }
     },
     "kali-tailscale": {
